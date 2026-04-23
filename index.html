@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZhangJing — Bring-Your-Own-LLM Translator</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Noto+Sans+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+
+  <style>
+    :root {
+      --bg: #F7F6F3;
+      --surface: #FFFFFF;
+      --primary: #2B5797;
+      --primary-hover: #1E3F6F;
+      --accent: #E8913A;
+      --text: #1A1A1A;
+      --text-secondary: #6B6B6B;
+      --border: #DEDDD8;
+      --success: #2D7D46;
+      --error: #C0392B;
+      --code: #2D3748;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Source Sans 3', 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1, h2, h3, h4, h5 { font-family: 'Noto Sans SC', sans-serif; font-weight: 700; }
+
+    code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Header */
+    .zj-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .zj-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .zj-logo svg { width: 28px; height: 28px; }
+
+    .zj-header-center {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .zj-lang-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zj-lang-select {
+      width: 140px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 200ms;
+    }
+
+    .zj-lang-select:focus { outline: none; border-color: var(--primary); }
+
+    .zj-swap-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: var(--surface);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: all 200ms ease-out;
+      flex-shrink: 0;
+    }
+
+    .zj-swap-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .zj-swap-btn:active { transform: scale(0.95); }
+    .zj-swap-btn.swapped { transform: rotate(180deg); }
+
+    .zj-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .zj-llm-select {
+      width: 160px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 200ms;
+    }
+
+    .zj-llm-select:focus { outline: none; border-color: var(--primary); }
+
+    /* Main layout */
+    .zj-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 24px;
+      gap: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .zj-panes {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .zj-pane-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .zj-pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #FAFAF8;
+    }
+
+    .zj-pane-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .zj-pane-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      position: relative;
+    }
+
+    .zj-input-textarea {
+      flex: 1;
+      border: none;
+      resize: none;
+      padding: 16px;
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text);
+      background: transparent;
+      min-height: 200px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .zj-input-textarea:focus { outline: none; }
+    .zj-input-textarea::placeholder { color: #B0AFA9; }
+
+    .zj-output-div {
+      flex: 1;
+      padding: 16px;
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text);
+      background: transparent;
+      min-height: 200px;
+      max-height: 60vh;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .zj-output-div:empty::before {
+      content: attr(data-placeholder);
+      color: #B0AFA9;
+      pointer-events: none;
+    }
+
+    .zj-output-div[contenteditable="true"]:focus { outline: none; }
+
+    .zj-output-div.user-edited {
+      font-style: italic;
+      border-left: 3px solid var(--accent);
+      padding-left: 13px;
+    }
+
+    .zj-char-count {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      padding: 4px 8px;
+    }
+
+    .zj-pane-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      background: #FAFAF8;
+      gap: 8px;
+    }
+
+    /* Action buttons in pane footer */
+    .zj-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-family: 'Source Sans 3', sans-serif;
+      cursor: pointer;
+      transition: all 200ms;
+      white-space: nowrap;
+    }
+
+    .zj-action-btn:hover { border-color: var(--primary); color: var(--primary); background: #EEF3FA; }
+    .zj-action-btn:active { transform: scale(0.97); }
+    .zj-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .zj-action-btn:disabled:hover { border-color: var(--border); color: var(--text-secondary); background: var(--surface); }
+    .zj-action-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .zj-action-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: white; }
+
+    .zj-action-btn .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alternatives bar */
+    .zj-alts-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      display: none;
+    }
+
+    .zj-alts-bar.visible { display: block; }
+
+    .zj-alts-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .zj-alts-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+
+    .zj-alt-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--primary);
+      border-radius: 20px;
+      background: white;
+      color: var(--primary);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 200ms;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .zj-alt-chip:hover { background: var(--primary); color: white; }
+    .zj-alt-chip.applied { background: var(--success); border-color: var(--success); color: white; }
+
+    .zj-alt-shimmer {
+      height: 32px;
+      border-radius: 20px;
+      background: linear-gradient(90deg, #F0EFED 25%, #E8E7E4 50%, #F0EFED 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      flex-shrink: 0;
+      width: 140px;
+    }
+
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* Definitions pane */
+    .zj-def-pane {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 300ms ease-in-out;
+    }
+
+    .zj-def-pane.open { max-height: 320px; }
+
+    .zj-def-inner {
+      padding: 16px;
+      overflow-y: auto;
+      max-height: 320px;
+    }
+
+    .zj-def-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .zj-def-word {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .zj-def-reading {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    .zj-def-pos {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #EEF3FA;
+      color: var(--primary);
+      margin-left: 8px;
+    }
+
+    .zj-def-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 200ms;
+    }
+
+    .zj-def-close:hover { background: #F0EFED; color: var(--error); }
+
+    .zj-def-list {
+      list-style: decimal;
+      padding-left: 20px;
+      margin: 0;
+    }
+
+    .zj-def-list li {
+      padding: 4px 0;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .zj-def-empty {
+      color: var(--text-secondary);
+      font-style: italic;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .zj-def-section { margin-bottom: 12px; }
+
+    .zj-def-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    /* Footer */
+    .zj-footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .zj-footer-hint {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .zj-footer-hint kbd {
+      background: #EEF3FA;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    /* Config Modal */
+    .zj-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    .zj-modal-overlay.open { display: flex; }
+
+    .zj-modal {
+      background: var(--surface);
+      border-radius: 12px;
+      width: 580px;
+      max-width: 95vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .zj-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .zj-modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zj-modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 200ms;
+    }
+
+    .zj-modal-close:hover { background: #F0EFED; color: var(--error); }
+
+    .zj-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .zj-modal-section {
+      margin-bottom: 28px;
+    }
+
+    .zj-modal-section:last-child { margin-bottom: 0; }
+
+    .zj-modal-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zj-form-group {
+      margin-bottom: 12px;
+    }
+
+    .zj-form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .zj-form-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 200ms;
+    }
+
+    .zj-form-input:focus { outline: none; border-color: var(--primary); }
+    .zj-form-input::placeholder { color: #B0AFA9; }
+
+    .zj-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Politeness toggle */
+    .zj-politeness-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .zj-politeness-btn {
+      padding: 7px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-family: 'Source Sans 3', sans-serif;
+      cursor: pointer;
+      transition: all 200ms;
+    }
+
+    .zj-politeness-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .zj-politeness-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+    /* Presets */
+    .zj-preset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .zj-preset-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #FAFAF8;
+    }
+
+    .zj-preset-name {
+      flex: 1;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .zj-preset-model {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .zj-preset-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 200ms;
+    }
+
+    .zj-preset-delete:hover { color: var(--error); background: #FDF0EF; }
+
+    .zj-modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    /* Toast */
+    .zj-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 2000;
+    }
+
+    .zj-toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      font-size: 0.9rem;
+      animation: toastIn 200ms ease-out;
+      max-width: 320px;
+    }
+
+    .zj-toast.success { background: #EAF5EE; color: var(--success); border: 1px solid #B8DFC8; }
+    .zj-toast.error { background: #FDECEA; color: var(--error); border: 1px solid #F5B8B3; }
+    .zj-toast.info { background: #EEF3FA; color: var(--primary); border: 1px solid #BDD0E8; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Error banner */
+    .zj-error-banner {
+      background: #FDECEA;
+      border: 1px solid #F5B8B3;
+      border-radius: 6px;
+      padding: 8px 14px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      color: var(--error);
+      font-size: 0.875rem;
+      margin: 0 16px 8px;
+    }
+
+    .zj-error-banner.visible { display: flex; }
+
+    .zj-error-dismiss {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--error);
+      font-size: 1rem;
+      padding: 0;
+      line-height: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .zj-panes { flex-direction: column; }
+      .zj-header-center { gap: 8px; }
+      .zj-lang-select { width: 110px; }
+      .zj-llm-select { width: 130px; }
+      .zj-form-row { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .zj-header { padding: 0 12px; gap: 10px; }
+      .zj-logo span { display: none; }
+      .zj-lang-select { width: 90px; font-size: 0.8rem; }
+      .zj-swap-btn { width: 30px; height: 30px; }
+      .zj-main { padding: 12px; }
+      .zj-llm-select { width: 100px; font-size: 0.78rem; }
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBCAC5; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #A8A7A2; }
+
+    /* Hidden class */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="zj-header">
+  <a class="zj-logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 2C8.477 2 4 6.477 4 12c0 4.07 2.43 7.6 6 9.33V24a2 2 0 002 2h8a2 2 0 002-2v-2.67c3.57-1.73 6-5.26 6-9.33 0-5.523-4.477-10-10-10z" fill="#2B5797" opacity=".15"/>
+      <path d="M14 6c-1.5 0-2.5 1-2.5 2.5S12.5 11 14 11s2.5-1 2.5-2.5S15.5 6 14 6z" fill="#2B5797"/>
+      <path d="M14 11c-4 0-7 2-7 4.5V18h14v-2.5C21 13 18 11 14 11z" fill="#E8913A"/>
+      <path d="M9 20h10M9 22h10" stroke="#2B5797" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <span>ZhangJing</span>
+  </a>
+
+  <div class="zj-header-center">
+    <div class="zj-lang-group">
+      <select id="srcLang" class="zj-lang-select" aria-label="Source language"></select>
+      <button class="zj-swap-btn" id="swapBtn" title="Swap languages" aria-label="Swap source and target languages">
+        <i class="ph ph-arrows-left-right"></i>
+      </button>
+      <select id="tgtLang" class="zj-lang-select" aria-label="Target language"></select>
+    </div>
+  </div>
+
+  <div class="zj-header-right">
+    <select id="transLlmSelect" class="zj-llm-select" aria-label="Translation LLM" title="Translation LLM preset"></select>
+    <select id="ttsLlmSelect" class="zj-llm-select" aria-label="TTS LLM" title="Text-to-speech LLM preset">
+      <option value="">Browser TTS</option>
+    </select>
+  </div>
+</header>
+
+<!-- Main area -->
+<main class="zj-main">
+
+  <!-- Alternatives bar -->
+  <div class="zj-alts-bar" id="altsBar" role="region" aria-label="Alternative translations">
+    <div class="zj-alts-label">Alternative Translations</div>
+    <div class="zj-alts-scroll" id="altsScroll"></div>
+  </div>
+
+  <!-- Error banner -->
+  <div class="zj-error-banner" id="errorBanner" role="alert">
+    <i class="ph ph-warning-circle"></i>
+    <span id="errorMsg"></span>
+    <button class="zj-error-dismiss" id="errorDismiss" aria-label="Dismiss error">&times;</button>
+  </div>
+
+  <!-- Input / Output panes -->
+  <div class="zj-panes">
+    <!-- Input pane -->
+    <div class="zj-pane-card">
+      <div class="zj-pane-header">
+        <span class="zj-pane-title">Source</span>
+        <span class="zj-char-count" id="inputCharCount">0 chars</span>
+      </div>
+      <div class="zj-pane-body">
+        <textarea
+          class="zj-input-textarea"
+          id="inputPane"
+          data-placeholder="Enter text to translate..."
+          placeholder="Enter text to translate..."
+          aria-label="Text to translate"
+          spellcheck="false"
+        ></textarea>
+      </div>
+      <div class="zj-pane-footer">
+        <span class="zj-footer-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to translate</span>
+        <button class="zj-action-btn primary" id="translateBtn">
+          <i class="ph ph-translate"></i> Translate
+        </button>
+      </div>
+    </div>
+
+    <!-- Output pane -->
+    <div class="zj-pane-card">
+      <div class="zj-pane-header">
+        <span class="zj-pane-title">Translation</span>
+        <span id="outputLoading" class="hidden" style="font-size:0.8rem;color:var(--accent);display:flex;align-items:center;gap:5px;">
+          <span class="spinner"></span> Translating...
+        </span>
+      </div>
+      <div class="zj-pane-body">
+        <div
+          class="zj-output-div"
+          id="outputPane"
+          contenteditable="true"
+          data-placeholder="Translation will appear here..."
+          aria-label="Translated text"
+          spellcheck="false"
+        ></div>
+      </div>
+      <div class="zj-pane-footer">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="zj-action-btn" id="copyBtn" title="Copy translation">
+            <i class="ph ph-copy"></i> Copy
+          </button>
+          <button class="zj-action-btn" id="ttsBtn" title="Read aloud">
+            <i class="ph ph-speaker-high"></i> TTS
+          </button>
+          <button class="zj-action-btn" id="downloadBtn" title="Download TTS audio" disabled>
+            <i class="ph ph-download-simple"></i> Download
+          </button>
+          <button class="zj-action-btn" id="suggestBtn" title="Get alternative translations">
+            <i class="ph ph-git-diff"></i> Suggest
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Definitions pane -->
+  <div class="zj-def-pane" id="defPane" role="region" aria-label="Word definitions">
+    <div class="zj-def-inner">
+      <div class="zj-def-header">
+        <div>
+          <span class="zj-def-word" id="defWord">word</span>
+          <span class="zj-def-reading" id="defReading"></span>
+          <span class="zj-def-pos" id="defPos"></span>
+        </div>
+        <button class="zj-def-close" id="defClose" aria-label="Close definitions">&times;</button>
+      </div>
+      <div id="defContent"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="zj-footer">
+  <span class="zj-footer-hint">
+    Config stored locally &mdash; no data leaves your browser
+  </span>
+  <button class="zj-action-btn" id="configBtn">
+    <i class="ph ph-gear-six"></i> Config
+  </button>
+</footer>
+
+<!-- Config Modal -->
+<div class="zj-modal-overlay" id="configOverlay" role="dialog" aria-modal="true" aria-labelledby="configModalTitle">
+  <div class="zj-modal">
+    <div class="zj-modal-header">
+      <div class="zj-modal-title" id="configModalTitle">
+        <i class="ph ph-gear-six"></i> Configuration
+      </div>
+      <button class="zj-modal-close" id="configClose" aria-label="Close config">&times;</button>
+    </div>
+
+    <div class="zj-modal-body">
+
+      <!-- Translation LLM Section -->
+      <div class="zj-modal-section">
+        <div class="zj-modal-section-title">
+          <i class="ph ph-translate"></i> Translation LLM
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTransPreset">Preset Name</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="cfgTransPreset" class="zj-form-input" placeholder="e.g. GPT-4o" style="flex:1;">
+            <button class="zj-action-btn primary" id="saveTransPresetBtn" style="flex-shrink:0;">Save Preset</button>
+          </div>
+        </div>
+
+        <div class="zj-preset-list" id="transPresetList"></div>
+
+        <div class="zj-form-row" style="margin-top:14px;">
+          <div class="zj-form-group">
+            <label class="zj-form-label" for="cfgTransProvider">Provider</label>
+            <select id="cfgTransProvider" class="zj-form-input" style="font-family:'Source Sans 3',sans-serif;">
+              <option value="openai">OpenAI Compatible</option>
+              <option value="anthropic">Anthropic (via OpenAI compat)</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">Ollama (local)</option>
+              <option value="lmstudio">LM Studio</option>
+              <option value="groq">Groq</option>
+              <option value="together">Together AI</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="zj-form-group">
+            <label class="zj-form-label" for="cfgTransModel">Model</label>
+            <input type="text" id="cfgTransModel" class="zj-form-input" placeholder="e.g. gpt-4o">
+          </div>
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTransBaseUrl">Base URL</label>
+          <input type="text" id="cfgTransBaseUrl" class="zj-form-input" placeholder="https://api.openai.com/v1">
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTransApiKey">API Key</label>
+          <input type="password" id="cfgTransApiKey" class="zj-form-input" placeholder="sk-...">
+        </div>
+      </div>
+
+      <!-- TTS LLM Section -->
+      <div class="zj-modal-section">
+        <div class="zj-modal-section-title">
+          <i class="ph ph-speaker-high"></i> Text-to-Speech LLM
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTtsPreset">Preset Name</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="cfgTtsPreset" class="zj-form-input" placeholder="e.g. OpenAI TTS" style="flex:1;">
+            <button class="zj-action-btn primary" id="saveTtsPresetBtn" style="flex-shrink:0;">Save Preset</button>
+          </div>
+        </div>
+
+        <div class="zj-preset-list" id="ttsPresetList"></div>
+
+        <div class="zj-form-row" style="margin-top:14px;">
+          <div class="zj-form-group">
+            <label class="zj-form-label" for="cfgTtsProvider">Provider</label>
+            <select id="cfgTtsProvider" class="zj-form-input" style="font-family:'Source Sans 3',sans-serif;">
+              <option value="openai">OpenAI Compatible</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">Ollama (local)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="zj-form-group">
+            <label class="zj-form-label" for="cfgTtsModel">Model</label>
+            <input type="text" id="cfgTtsModel" class="zj-form-input" placeholder="e.g. tts-1">
+          </div>
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTtsBaseUrl">Base URL</label>
+          <input type="text" id="cfgTtsBaseUrl" class="zj-form-input" placeholder="https://api.openai.com/v1">
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTtsApiKey">API Key</label>
+          <input type="password" id="cfgTtsApiKey" class="zj-form-input" placeholder="sk-...">
+        </div>
+
+        <div class="zj-form-group">
+          <label class="zj-form-label" for="cfgTtsVoice">Voice</label>
+          <select id="cfgTtsVoice" class="zj-form-input" style="font-family:'Source Sans 3',sans-serif;">
+            <option value="alloy">Alloy (neutral)</option>
+            <option value="echo">Echo (male)</option>
+            <option value="fable">Fable (male)</option>
+            <option value="onyx">Onyx (male)</option>
+            <option value="nova">Nova (female)</option>
+            <option value="shimmer">Shimmer (female)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Politeness Section -->
+      <div class="zj-modal-section">
+        <div class="zj-modal-section-title">
+          <i class="ph ph-chats-circle"></i> Politeness / Formality (Japanese / Korean)
+        </div>
+        <div class="zj-politeness-group" id="politenessGroup">
+          <button class="zj-politeness-btn" data-value="auto">Auto</button>
+          <button class="zj-politeness-btn" data-value="casual">Casual / Plain</button>
+          <button class="zj-politeness-btn" data-value="polite">Polite (ていねい)</button>
+          <button class="zj-politeness-btn" data-value="formal">Formal / Respectful</button>
+          <button class="zj-politeness-btn" data-value="humble">Humble (谦逊)</button>
+        </div>
+      </div>
+
+      <!-- General Section -->
+      <div class="zj-modal-section">
+        <div class="zj-modal-section-title">
+          <i class="ph ph-sliders"></i> General
+        </div>
+        <div class="zj-form-group">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="cfgAutoTranslate" style="width:16px;height:16px;cursor:pointer;">
+            <span class="zj-form-label" style="margin:0;font-size:0.9rem;">Auto-translate after 1.2s pause</span>
+          </label>
+        </div>
+        <div class="zj-form-group">
+          <label class="zj-form-label">Source Text Language (auto-detect if empty)</label>
+          <input type="text" id="cfgSourceLangOverride" class="zj-form-input" placeholder="e.g. ja, ko, en (leave empty for auto)">
+        </div>
+      </div>
+
+    </div><!-- /modal-body -->
+
+    <div class="zj-modal-footer">
+      <button class="zj-action-btn" id="resetConfigBtn" style="color:var(--error);border-color:#F5B8B3;">
+        <i class="ph ph-arrow-counter-clockwise"></i> Reset All
+      </button>
+      <div style="display:flex;gap:8px;">
+        <button class="zj-action-btn" id="cancelConfigBtn">Cancel</button>
+        <button class="zj-action-btn primary" id="saveConfigBtn">
+          <i class="ph ph-floppy-disk"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="zj-toast-container" id="toastContainer"></div>
+
+<!-- Vue 3 + app -->
+<script type="module">
+import {
+  createApp,
+  reactive,
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  watch,
+} from 'https://unpkg.com/vue@3.4.21/dist/vue.esm-browser.prod.js';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const LANGUAGES = [
+  { code: 'auto',  name: 'Auto-detect' },
+  { code: 'en',   name: 'English' },
+  { code: 'zh',   name: 'Chinese (Simplified)' },
+  { code: 'ja',   name: 'Japanese' },
+  { code: 'ko',   name: 'Korean' },
+  { code: 'fr',   name: 'French' },
+  { code: 'de',   name: 'German' },
+  { code: 'es',   name: 'Spanish' },
+  { code: 'it',   name: 'Italian' },
+  { code: 'pt',   name: 'Portuguese' },
+  { code: 'ru',   name: 'Russian' },
+  { code: 'ar',   name: 'Arabic' },
+  { code: 'hi',   name: 'Hindi' },
+  { code: 'th',   name: 'Thai' },
+  { code: 'vi',   name: 'Vietnamese' },
+  { code: 'id',   name: 'Indonesian' },
+];
+
+const POLITENESS_LEVELS = ['auto', 'casual', 'polite', 'formal', 'humble'];
+
+const DEFAULT_CONFIG = {
+  transLlm: {
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    model: 'gpt-4o',
+  },
+  ttsLlm: {
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    model: 'tts-1',
+    voice: 'alloy',
+  },
+  politeness: 'auto',
+  autoTranslate: false,
+  sourceLangOverride: '',
+};
+
+const DEFAULT_PRESETS = {
+  translation: [
+    { name: 'GPT-4o', provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', apiKey: '' },
+    { name: 'GPT-4o Mini', provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '' },
+    { name: 'DeepSeek Chat', provider: 'deepseek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: '' },
+    { name: 'Ollama (local)', provider: 'ollama', baseUrl: 'http://localhost:11434/v1', model: 'llama3', apiKey: '' },
+  ],
+  tts: [
+    { name: 'OpenAI TTS-1', provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'tts-1', voice: 'alloy', apiKey: '' },
+  ],
+};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
+const state = reactive({
+  srcLang: 'auto',
+  tgtLang: 'en',
+  inputText: '',
+  outputText: '',
+  isUserEdited: false,
+  isTranslating: false,
+  isTtsPlaying: false,
+  isTtsLoading: false,
+  alternatives: [],      // [{text, label}]
+  alternativesLoading: false,
+  definition: null,      // {word, reading, pos, definitions, examples}
+  defPaneOpen: false,
+  error: null,
+  configOpen: false,
+  configDirty: false,
+  // Live config editing (mirror of saved config, dirty until Save)
+  cfg: JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
+  presets: JSON.parse(JSON.stringify(DEFAULT_PRESETS)),
+  // Audio blob for download
+  lastAudioBlob: null,
+  lastAudioUrl: null,
+  swapSwapped: false,
+  toastQueue: [],
+});
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function $id(id) { return document.getElementById(id); }
+
+function showToast(msg, type = 'info', duration = 3000) {
+  const id = Date.now() + Math.random();
+  state.toastQueue.push({ id, msg, type });
+  setTimeout(() => {
+    const idx = state.toastQueue.findIndex(t => t.id === id);
+    if (idx !== -1) state.toastQueue.splice(idx, 1);
+  }, duration);
+}
+
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem('zj_config');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      Object.assign(state.cfg, parsed.config || {});
+      Object.assign(state.presets, parsed.presets || {});
+    }
+    const savedPresets = localStorage.getItem('zj_presets');
+    if (savedPresets) {
+      Object.assign(state.presets, JSON.parse(savedPresets));
+    }
+  } catch(e) {
+    console.warn('Failed to load config from localStorage:', e);
+  }
+}
+
+function saveConfig() {
+  try {
+    localStorage.setItem('zj_config', JSON.stringify({ config: state.cfg, presets: state.presets }));
+    localStorage.setItem('zj_presets', JSON.stringify(state.presets));
+    state.configDirty = false;
+    showToast('Configuration saved', 'success');
+  } catch(e) {
+    showToast('Failed to save config: ' + e.message, 'error');
+  }
+}
+
+function resetConfig() {
+  Object.assign(state.cfg, JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+  Object.assign(state.presets, JSON.parse(JSON.stringify(DEFAULT_PRESETS)));
+  localStorage.removeItem('zj_config');
+  localStorage.removeItem('zj_presets');
+  state.configDirty = false;
+  showToast('Config reset to defaults', 'info');
+}
+
+function buildChatUrl(baseUrl) {
+  let url = baseUrl.trim();
+  if (!url.endsWith('/')) url += '/';
+  return url + 'chat/completions';
+}
+
+function buildTtsUrl(baseUrl) {
+  let url = baseUrl.trim();
+  if (!url.endsWith('/')) url += '/';
+  return url + 'audio/speech';
+}
+
+async function callLlm({ baseUrl, apiKey, model, messages, response_format }) {
+  const url = buildChatUrl(baseUrl);
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+  const body = {
+    model,
+    messages,
+    temperature: 0.3,
+  };
+  if (response_format) body.response_format = response_format;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`LLM API error ${resp.status}: ${errText || resp.statusText}`);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+// ─── Translation Logic ───────────────────────────────────────────────────────
+
+function buildTranslateSystemPrompt(srcLang, tgtLang, politeness, srcLangOverride) {
+  const isJapanese = tgtLang === 'ja' || (srcLangOverride === 'ja');
+  const isKorean = tgtLang === 'ko' || (srcLangOverride === 'ko');
+
+  let politenessNote = '';
+  if (politeness !== 'auto' && (isJapanese || isKorean)) {
+    const notes = {
+      casual:  'Use casual / plain form (タメ口, 반말).',
+      polite:  'Use polite form (です/ます, ~(스)ㅂ니다/어요).',
+      formal:  'Use formal / respectful honorific form (敬語/keigo, 격식체).',
+      humble:  'Use humble form (谦逊语, 자칭/谦逊).',
+    };
+    politenessNote = '\nPoliteness: ' + notes[politeness] || '';
+  }
+
+  return `You are a professional translator. Translate the text faithfully and accurately.' +
+    ' Only output the translation — no explanations, no comments, no quotes.' +
+    ' Preserve line breaks and formatting as much as possible.${politenessNote}`;
+}
+
+function buildTranslateUserPrompt(text, srcLang, tgtLang, srcLangOverride) {
+  const src = srcLangOverride || srcLang;
+  const srcName = LANGUAGES.find(l => l.code === src)?.name || src;
+  const tgtName = LANGUAGES.find(l => l.code === tgtLang)?.name || tgtLang;
+  return `Translate the following ${srcName} text to ${tgtName}.\n\n${text}`;
+}
+
+function buildAlternativesSystemPrompt(srcLang, tgtLang, politeness, srcLangOverride) {
+  const isJapanese = tgtLang === 'ja' || (srcLangOverride === 'ja');
+  const isKorean = tgtLang === 'ko' || (srcLangOverride === 'ko');
+
+  let politenessNote = '';
+  if (politeness !== 'auto' && (isJapanese || isKorean)) {
+    const notes = {
+      casual:  'Use casual / plain form.',
+      polite:  'Use polite form.',
+      formal:  'Use formal / respectful form.',
+      humble:  'Use humble form.',
+    };
+    politenessNote = '\nPoliteness: ' + notes[politeness] || '';
+  }
+
+  return `You are a professional translator. Generate exactly 4 distinct alternative translations of the given text, each with a different nuance or phrasing. Number them 1–4. Format your response EXACTLY as:
+
+ALT 1: [first alternative]
+ALT 2: [second alternative]
+ALT 3: [third alternative]
+ALT 4: [fourth alternative]
+
+Make each alternative meaningfully different in tone, nuance, or structure.${politenessNote}
+Only output the 4 alternatives, nothing else.`;
+}
+
+function buildAlternativesUserPrompt(text, srcLang, tgtLang, srcLangOverride) {
+  const src = srcLangOverride || srcLang;
+  const srcName = LANGUAGES.find(l => l.code === src)?.name || src;
+  const tgtName = LANGUAGES.find(l => l.code === tgtLang)?.name || tgtLang;
+  return `Provide 4 distinct alternative translations of this ${srcName} text to ${tgtName}:\n\n${text}`;
+}
+
+function buildDefinitionsSystemPrompt() {
+  return `You are a bilingual dictionary. For the given word/phrase in the context of the provided translation, provide:
+1. The reading/pronunciation (for CJK characters)
+2. Part of speech
+3. 2-4 concise definitions
+4. An example sentence using the word
+
+Format your response EXACTLY as:
+WORD: [the word]
+READING: [pronunciation in romaji or pinyin]
+POS: [part of speech]
+DEFINITIONS:
+1. [definition one]
+2. [definition two]
+3. [definition three]
+4. [definition four]
+EXAMPLE: [example sentence]
+
+If no dictionary entry can be found, respond with exactly:
+NOT_FOUND`;
+
+  return `You are a bilingual dictionary. For the given word or phrase, provide:
+1. The reading/pronunciation (for CJK characters, in romaji or pinyin)
+2. Part of speech
+3. 2-4 concise definitions
+4. An example sentence
+
+Format EXACTLY as:
+WORD: [word]
+READING: [pronunciation]
+POS: [part of speech]
+DEFINITIONS:
+1. [def 1]
+2. [def 2]
+3. [def 3]
+4. [def 4]
+EXAMPLE: [sentence]
+
+If no entry found: NOT_FOUND`;
+}
+
+function buildDefinitionsUserPrompt(word, srcLang, tgtLang, translatedSentence) {
+  const tgtName = LANGUAGES.find(l => l.code === tgtLang)?.name || tgtLang;
+  const srcName = LANGUAGES.find(l => l.code === srcLang)?.name || srcLang;
+  return `Look up the word/phrase "${word}" in the context of a ${srcName} to ${tgtName} translation.\n\nThe surrounding translation is: "${translatedSentence}"\n\nProvide dictionary information for "${word}" in ${srcName}.`;
+}
+
+async function doTranslate() {
+  const text = state.inputText.trim();
+  if (!text) {
+    shakeElement($id('inputPane'));
+    return;
+  }
+
+  if (!state.cfg.transLlm.apiKey && !state.cfg.transLlm.baseUrl.includes('localhost')) {
+    showError('Please configure your Translation LLM API key in Config.');
+    return;
+  }
+
+  clearError();
+  state.isTranslating = true;
+  state.alternatives = [];
+
+  try {
+    const messages = [
+      { role: 'system', content: buildTranslateSystemPrompt(state.srcLang, state.tgtLang, state.cfg.politeness, state.cfg.sourceLangOverride) },
+      { role: 'user', content: buildTranslateUserPrompt(text, state.srcLang, state.tgtLang, state.cfg.sourceLangOverride) },
+    ];
+
+    const result = await callLlm({
+      baseUrl: state.cfg.transLlm.baseUrl,
+      apiKey: state.cfg.transLlm.apiKey,
+      model: state.cfg.transLlm.model,
+      messages,
+    });
+
+    state.outputText = result;
+    state.isUserEdited = false;
+    setOutputHtml(escapeHtml(result));
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    state.isTranslating = false;
+  }
+}
+
+async function doSuggestAlternatives() {
+  const text = state.inputText.trim();
+  if (!text) return;
+
+  if (!state.cfg.transLlm.apiKey && !state.cfg.transLlm.baseUrl.includes('localhost')) {
+    showError('Please configure your Translation LLM API key in Config.');
+    return;
+  }
+
+  clearError();
+  state.alternativesLoading = true;
+  state.altsBar = true;
+  showAltsBar(true);
+
+  try {
+    const messages = [
+      { role: 'system', content: buildAlternativesSystemPrompt(state.srcLang, state.tgtLang, state.cfg.politeness, state.cfg.sourceLangOverride) },
+      { role: 'user', content: buildAlternativesUserPrompt(text, state.srcLang, state.tgtLang, state.cfg.sourceLangOverride) },
+    ];
+
+    const result = await callLlm({
+      baseUrl: state.cfg.transLlm.baseUrl,
+      apiKey: state.cfg.transLlm.apiKey,
+      model: state.cfg.transLlm.model,
+      messages,
+    });
+
+    // Parse ALT 1:, ALT 2:, etc.
+    const alts = [];
+    const regex = /ALT\s+(\d+):\s*(.+?)(?=ALT\s+\d+:|$)/gs;
+    let match;
+    while ((match = regex.exec(result)) !== null) {
+      alts.push({ id: match[1], text: match[2].trim(), label: `Alt ${match[1]}` });
+    }
+
+    if (alts.length === 0) {
+      // Fallback: try splitting by lines
+      const lines = result.split('\n').filter(l => l.trim());
+      for (const line of lines) {
+        const m = line.match(/^ALT?\s*(\d)[:\.]?\s*(.+)/i);
+        if (m) alts.push({ id: m[1], text: m[2].trim(), label: `Alt ${m[1]}` });
+      }
+    }
+
+    state.alternatives = alts;
+    renderAlternatives(alts);
+  } catch(e) {
+    showError('Failed to get alternatives: ' + e.message);
+    showAltsBar(false);
+  } finally {
+    state.alternativesLoading = false;
+  }
+}
+
+function applyAlternative(alt) {
+  state.outputText = alt.text;
+  state.isUserEdited = false;
+  setOutputHtml(escapeHtml(alt.text));
+  // Mark as applied
+  document.querySelectorAll('.zj-alt-chip').forEach(c => c.classList.remove('applied'));
+  const chips = document.querySelectorAll('.zj-alt-chip');
+  const idx = state.alternatives.findIndex(a => a.id === alt.id);
+  if (chips[idx]) chips[idx].classList.add('applied');
+}
+
+// ─── TTS Logic ───────────────────────────────────────────────────────────────
+
+async function doTts() {
+  const text = state.outputText.trim();
+  if (!text) {
+    showToast('No translation to read', 'info');
+    return;
+  }
+
+  // Use browser TTS if no TTS LLM configured
+  if (!state.cfg.ttsLlm.apiKey && !state.cfg.ttsLlm.baseUrl.includes('localhost')) {
+    // Browser TTS fallback
+    const utter = new SpeechSynthesisUtterance(text);
+    // Try to set language
+    const langMap = { ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN', en: 'en-US', fr: 'fr-FR', de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', ar: 'ar-SA', hi: 'hi-IN', th: 'th-TH', vi: 'vi-VN', id: 'id-ID' };
+    utter.lang = langMap[state.tgtLang] || 'en-US';
+    utter.rate = 0.95;
+    state.isTtsPlaying = true;
+    utter.onend = () => { state.isTtsPlaying = false; updateTtsBtn(); };
+    utter.onerror = () => { state.isTtsPlaying = false; updateTtsBtn(); };
+    speechSynthesis.speak(utter);
+    updateTtsBtn();
+    return;
+  }
+
+  state.isTtsLoading = true;
+  updateTtsBtn();
+  clearAudio();
+
+  try {
+    const url = buildTtsUrl(state.cfg.ttsLlm.baseUrl);
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.cfg.ttsLlm.apiKey}`,
+    };
+    const body = {
+      model: state.cfg.ttsLlm.model || 'tts-1',
+      input: text,
+      voice: state.cfg.ttsLlm.voice || 'alloy',
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      throw new Error(`TTS API error ${resp.status}: ${errText || resp.statusText}`);
+    }
+
+    const blob = await resp.blob();
+    state.lastAudioBlob = blob;
+    const audioUrl = URL.createObjectURL(blob);
+    state.lastAudioUrl = audioUrl;
+
+    const audio = new Audio(audioUrl);
+    state.isTtsPlaying = true;
+    updateTtsBtn();
+    audio.onended = () => {
+      state.isTtsPlaying = false;
+      updateTtsBtn();
+    };
+    audio.onerror = () => {
+      state.isTtsPlaying = false;
+      updateTtsBtn();
+      showToast('Audio playback failed', 'error');
+    };
+    audio.play();
+  } catch(e) {
+    showToast('TTS failed: ' + e.message, 'error');
+    state.isTtsPlaying = false;
+  } finally {
+    state.isTtsLoading = false;
+    updateTtsBtn();
+  }
+}
+
+function clearAudio() {
+  if (state.lastAudioUrl) {
+    URL.revokeObjectURL(state.lastAudioUrl);
+    state.lastAudioUrl = null;
+  }
+  state.lastAudioBlob = null;
+}
+
+function downloadAudio() {
+  if (!state.lastAudioBlob) return;
+  const a = document.createElement('a');
+  a.href = state.lastAudioUrl;
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  a.download = `zhangjing_tts_${ts}.mp3`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Audio downloaded', 'success');
+}
+
+// ─── Definitions Logic ───────────────────────────────────────────────────────
+
+async function doLookupDefinition(selectedText) {
+  if (!selectedText || !selectedText.trim()) {
+    closeDefPane();
+    return;
+  }
+
+  const word = selectedText.trim();
+  openDefPane();
+
+  // If no LLM for translation/configured, try using browser dictionary or show placeholder
+  if (!state.cfg.transLlm.apiKey && !state.cfg.transLlm.baseUrl.includes('localhost')) {
+    // Show basic placeholder
+    state.definition = {
+      word,
+      reading: '',
+      pos: '',
+      definitions: ['(Configure a Translation LLM to get definitions)'],
+      example: '',
+    };
+    renderDefinition();
+    return;
+  }
+
+  try {
+    const messages = [
+      { role: 'system', content: buildDefinitionsSystemPrompt() },
+      { role: 'user', content: buildDefinitionsUserPrompt(word, state.srcLang, state.tgtLang, state.outputText) },
+    ];
+
+    const result = await callLlm({
+      baseUrl: state.cfg.transLlm.baseUrl,
+      apiKey: state.cfg.transLlm.apiKey,
+      model: state.cfg.transLlm.model,
+      messages,
+    });
+
+    if (result.trim() === 'NOT_FOUND' || result.includes('NOT_FOUND')) {
+      state.definition = {
+        word,
+        reading: '',
+        pos: '',
+        definitions: ['No definition found for this word.'],
+        example: '',
+      };
+    } else {
+      const def = parseDefinitionResponse(result);
+      def.word = word;
+      state.definition = def;
+    }
+    renderDefinition();
+  } catch(e) {
+    state.definition = {
+      word,
+      reading: '',
+      pos: '',
+      definitions: ['Error looking up definition: ' + e.message],
+      example: '',
+    };
+    renderDefinition();
+  }
+}
+
+function parseDefinitionResponse(text) {
+  const lines = text.split('\n');
+  const def = { word: '', reading: '', pos: '', definitions: [], example: '' };
+  let inDefs = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('WORD:')) def.word = trimmed.slice(5).trim();
+    else if (trimmed.startsWith('READING:')) def.reading = trimmed.slice(8).trim();
+    else if (trimmed.startsWith('POS:')) def.pos = trimmed.slice(4).trim();
+    else if (trimmed.startsWith('DEFINITIONS:')) { inDefs = true; }
+    else if (trimmed.startsWith('EXAMPLE:')) { inDefs = false; def.example = trimmed.slice(8).trim(); }
+    else if (inDefs && /^\d+[\.\)]\s*(.+)/.test(trimmed)) {
+      def.definitions.push(trimmed.replace(/^\d+[\.\)]\s*/, ''));
+    }
+  }
+
+  return def;
+}
+
+// ─── UI Helpers ──────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function shakeElement(el) {
+  el.classList.add('shake');
+  el.style.animation = 'none';
+  el.offsetHeight; // reflow
+  el.style.animation = '';
+  setTimeout(() => el.classList.remove('shake'), 400);
+}
+
+function showError(msg) {
+  state.error = msg;
+  $id('errorMsg').textContent = msg;
+  $id('errorBanner').classList.add('visible');
+}
+
+function clearError() {
+  state.error = null;
+  $id('errorBanner').classList.remove('visible');
+}
+
+function openDefPane() {
+  state.defPaneOpen = true;
+  $id('defPane').classList.add('open');
+}
+
+function closeDefPane() {
+  state.defPaneOpen = false;
+  $id('defPane').classList.remove('open');
+}
+
+function showAltsBar(visible) {
+  const bar = $id('altsBar');
+  if (visible) bar.classList.add('visible');
+  else bar.classList.remove('visible');
+}
+
+function setOutputHtml(html) {
+  $id('outputPane').innerHTML = html;
+}
+
+function renderAlternatives(alts) {
+  const scroll = $id('altsScroll');
+  if (!alts || alts.length === 0) {
+    scroll.innerHTML = '<span style="color:var(--text-secondary);font-size:0.875rem;">No alternatives returned.</span>';
+    return;
+  }
+
+  scroll.innerHTML = alts.map((alt, i) => `
+    <button class="zj-alt-chip" data-id="${alt.id}" data-index="${i}" title="${escapeHtml(alt.text)}">
+      <span>Alt ${alt.id}</span>
+    </button>
+  `).join('');
+
+  scroll.querySelectorAll('.zj-alt-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.index);
+      applyAlternative(alts[idx]);
+    });
+  });
+}
+
+function renderDefinition() {
+  const def = state.definition;
+  if (!def) return;
+
+  $id('defWord').textContent = def.word;
+  $id('defReading').textContent = def.reading || '';
+  $id('defPos').textContent = def.pos || '';
+  $id('defPos').style.display = def.pos ? 'inline-block' : 'none';
+
+  const content = $id('defContent');
+  if (def.definitions.length === 0) {
+    content.innerHTML = '<div class="zj-def-empty">No definition found.</div>';
+  } else {
+    content.innerHTML = `
+      ${def.definitions.length > 0 ? `
+        <div class="zj-def-section">
+          <div class="zj-def-section-title">Definitions</div>
+          <ol class="zj-def-list">
+            ${def.definitions.map(d => `<li>${escapeHtml(d)}</li>`).join('')}
+          </ol>
+        </div>
+      ` : ''}
+      ${def.example ? `
+        <div class="zj-def-section">
+          <div class="zj-def-section-title">Example</div>
+          <p style="font-style:italic;color:var(--text-secondary);margin:0;">${escapeHtml(def.example)}</p>
+        </div>
+      ` : ''}
+    `;
+  }
+}
+
+function updateTtsBtn() {
+  const btn = $id('ttsBtn');
+  const downloadBtn = $id('downloadBtn');
+  if (state.isTtsLoading) {
+    btn.innerHTML = '<span class="spinner"></span> Loading...';
+    btn.disabled = true;
+    downloadBtn.disabled = true;
+  } else if (state.isTtsPlaying) {
+    btn.innerHTML = '<i class="ph ph-stop-circle"></i> Stop';
+    btn.disabled = false;
+    downloadBtn.disabled = !state.lastAudioBlob;
+  } else {
+    btn.innerHTML = '<i class="ph ph-speaker-high"></i> TTS';
+    btn.disabled = false;
+    downloadBtn.disabled = !state.lastAudioBlob;
+  }
+}
+
+function populateLangDropdowns() {
+  const srcSelect = $id('srcLang');
+  const tgtSelect = $id('tgtLang');
+
+  srcSelect.innerHTML = LANGUAGES.map(l =>
+    `<option value="${l.code}"${l.code === state.srcLang ? ' selected' : ''}>${l.name}</option>`
+  ).join('');
+
+  tgtSelect.innerHTML = LANGUAGES.filter(l => l.code !== 'auto').map(l =>
+    `<option value="${l.code}"${l.code === state.tgtLang ? ' selected' : ''}>${l.name}</option>`
+  ).join('');
+}
+
+function updateLlmSelects() {
+  const transSelect = $id('transLlmSelect');
+  const ttsSelect = $id('ttsLlmSelect');
+
+  const transOpts = state.presets.translation.map(p =>
+    `<option value="${p.name}">${p.name}</option>`
+  ).join('');
+  transSelect.innerHTML = transOpts || '<option value="">Configure in Config</option>';
+
+  const ttsOpts = state.presets.tts.map(p =>
+    `<option value="${p.name}">${p.name}</option>`
+  ).join('');
+  ttsSelect.innerHTML = '<option value="">Browser TTS</option>' + ttsOpts;
+}
+
+function loadPresetIntoConfig(presets, type, presetName) {
+  const list = presets[type];
+  if (!list) return;
+  const preset = list.find(p => p.name === presetName);
+  if (!preset) return;
+
+  if (type === 'translation') {
+    state.cfg.transLlm = { ...preset };
+  } else if (type === 'tts') {
+    state.cfg.ttsLlm = { ...preset };
+  }
+}
+
+function renderPresetList(type, containerId, presetInputId) {
+  const container = $id(containerId);
+  const list = state.presets[type];
+
+  if (!list || list.length === 0) {
+    container.innerHTML = '<div style="font-size:0.8rem;color:var(--text-secondary);padding:6px 0;">No presets saved yet.</div>';
+    return;
+  }
+
+  container.innerHTML = list.map((p, i) => `
+    <div class="zj-preset-item">
+      <span class="zj-preset-name">${escapeHtml(p.name)}</span>
+      <span class="zj-preset-model">${escapeHtml(p.model)}</span>
+      <button class="zj-preset-delete" data-type="${type}" data-index="${i}" title="Delete preset">&times;</button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.zj-preset-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.index);
+      state.presets[btn.dataset.type].splice(idx, 1);
+      renderPresetList(type, containerId, presetInputId);
+      state.configDirty = true;
+    });
+  });
+}
+
+function syncConfigToForm() {
+  // Translation LLM
+  $id('cfgTransProvider').value = state.cfg.transLlm.provider || 'openai';
+  $id('cfgTransModel').value = state.cfg.transLlm.model || '';
+  $id('cfgTransBaseUrl').value = state.cfg.transLlm.baseUrl || '';
+  $id('cfgTransApiKey').value = state.cfg.transLlm.apiKey || '';
+
+  // TTS LLM
+  $id('cfgTtsProvider').value = state.cfg.ttsLlm.provider || 'openai';
+  $id('cfgTtsModel').value = state.cfg.ttsLlm.model || '';
+  $id('cfgTtsBaseUrl').value = state.cfg.ttsLlm.baseUrl || '';
+  $id('cfgTtsApiKey').value = state.cfg.ttsLlm.apiKey || '';
+  $id('cfgTtsVoice').value = state.cfg.ttsLlm.voice || 'alloy';
+
+  // Politeness
+  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === state.cfg.politeness);
+  });
+
+  // General
+  $id('cfgAutoTranslate').checked = state.cfg.autoTranslate;
+  $id('cfgSourceLangOverride').value = state.cfg.sourceLangOverride || '';
+
+  // Presets
+  renderPresetList('translation', 'transPresetList', 'cfgTransPreset');
+  renderPresetList('tts', 'ttsPresetList', 'cfgTtsPreset');
+}
+
+function syncFormToConfig() {
+  state.cfg.transLlm = {
+    provider: $id('cfgTransProvider').value,
+    model: $id('cfgTransModel').value,
+    baseUrl: $id('cfgTransBaseUrl').value,
+    apiKey: $id('cfgTransApiKey').value,
+  };
+  state.cfg.ttsLlm = {
+    provider: $id('cfgTtsProvider').value,
+    model: $id('cfgTtsModel').value,
+    baseUrl: $id('cfgTtsBaseUrl').value,
+    apiKey: $id('cfgTtsApiKey').value,
+    voice: $id('cfgTtsVoice').value,
+  };
+  state.cfg.autoTranslate = $id('cfgAutoTranslate').checked;
+  state.cfg.sourceLangOverride = $id('cfgSourceLangOverride').value.trim();
+}
+
+function markConfigDirty() { state.configDirty = true; }
+
+// ─── Auto-translate debounce ─────────────────────────────────────────────────
+
+let autoTranslateTimer = null;
+
+function handleInputChange() {
+  const text = $id('inputPane').value;
+  state.inputText = text;
+  $id('inputCharCount').textContent = `${text.length} chars`;
+
+  if (state.cfg.autoTranslate) {
+    clearTimeout(autoTranslateTimer);
+    autoTranslateTimer = setTimeout(() => doTranslate(), 1200);
+  }
+}
+
+// ─── Output text selection / definitions ───────────────────────────────────
+
+let lookupDebounce = null;
+
+function handleOutputMouseUp() {
+  clearTimeout(lookupDebounce);
+  lookupDebounce = setTimeout(() => {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    if (text && text.length > 0 && text.length < 200) {
+      doLookupDefinition(text);
+    }
+  }, 400);
+}
+
+function handleOutputKeyUp(e) {
+  // Handle text selection via keyboard
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    handleOutputMouseUp();
+  }
+}
+
+// ─── Vue Template Rendering (manual, no Vue template compiler) ───────────────
+
+// We use Vue for reactive state, but DOM updates via manual methods above.
+// The Vue app is mostly a reactive store; DOM is updated via watchers.
+
+// ─── Event Bindings ─────────────────────────────────────────────────────────
+
+function bindEvents() {
+  // Translate
+  $id('translateBtn').addEventListener('click', doTranslate);
+
+  // Keyboard shortcut
+  $id('inputPane').addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      doTranslate();
+    }
+  });
+
+  // Input changes
+  $id('inputPane').addEventListener('input', handleInputChange);
+
+  // Swap
+  $id('swapBtn').addEventListener('click', () => {
+    const src = state.srcLang;
+    let tgt = state.tgtLang;
+    if (src === 'auto') {
+      // Can't swap auto as source, try to detect from tgt
+      showToast('Cannot swap: source is Auto-detect. Set source language first.', 'info');
+      return;
+    }
+    state.srcLang = tgt;
+    state.tgtLang = src;
+    populateLangDropdowns();
+    // Also swap text
+    const tmp = state.inputText;
+    state.inputText = state.outputText;
+    state.outputText = tmp;
+    $id('inputPane').value = state.inputText;
+    $id('inputCharCount').textContent = `${state.inputText.length} chars`;
+    setOutputHtml(escapeHtml(state.outputText));
+    // Animate swap button
+    const btn = $id('swapBtn');
+    btn.classList.add('swapped');
+    setTimeout(() => btn.classList.remove('swapped'), 300);
+  });
+
+  // Language changes
+  $id('srcLang').addEventListener('change', e => {
+    state.srcLang = e.target.value;
+    clearResults();
+  });
+  $id('tgtLang').addEventListener('change', e => {
+    state.tgtLang = e.target.value;
+    clearResults();
+  });
+
+  // Output pane - track user edits
+  $id('outputPane').addEventListener('input', () => {
+    state.outputText = $id('outputPane').innerText;
+    state.isUserEdited = true;
+    $id('outputPane').classList.add('user-edited');
+  });
+
+  $id('outputPane').addEventListener('mouseup', handleOutputMouseUp);
+  $id('outputPane').addEventListener('keyup', handleOutputKeyUp);
+
+  // Output pane - clear user-edited indicator on new translation
+  watch(() => state.outputText, () => {
+    if (!state.isUserEdited) {
+      $id('outputPane').classList.remove('user-edited');
+    }
+  });
+
+  // Copy
+  $id('copyBtn').addEventListener('click', () => {
+    const text = state.outputText || $id('outputPane').innerText;
+    if (!text.trim()) {
+      showToast('Nothing to copy', 'info');
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied to clipboard', 'success');
+    }).catch(() => {
+      showToast('Failed to copy', 'error');
+    });
+  });
+
+  // TTS
+  $id('ttsBtn').addEventListener('click', () => {
+    if (state.isTtsPlaying) {
+      speechSynthesis.cancel();
+      state.isTtsPlaying = false;
+      updateTtsBtn();
+    } else {
+      doTts();
+    }
+  });
+
+  // Download
+  $id('downloadBtn').addEventListener('click', downloadAudio);
+
+  // Suggest alternatives
+  $id('suggestBtn').addEventListener('click', doSuggestAlternatives);
+
+  // Definitions close
+  $id('defClose').addEventListener('click', closeDefPane);
+
+  // Error dismiss
+  $id('errorDismiss').addEventListener('click', clearError);
+
+  // Config modal
+  $id('configBtn').addEventListener('click', () => {
+    syncConfigToForm();
+    state.configOpen = true;
+    $id('configOverlay').classList.add('open');
+  });
+
+  $id('configClose').addEventListener('click', () => {
+    $id('configOverlay').classList.remove('open');
+    state.configOpen = false;
+  });
+
+  $id('configOverlay').addEventListener('click', e => {
+    if (e.target === $id('configOverlay')) {
+      $id('configOverlay').classList.remove('open');
+      state.configOpen = false;
+    }
+  });
+
+  // Politeness buttons
+  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.zj-politeness-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.cfg.politeness = btn.dataset.value;
+      markConfigDirty();
+    });
+  });
+
+  // Save config
+  $id('saveConfigBtn').addEventListener('click', () => {
+    syncFormToConfig();
+    saveConfig();
+    updateLlmSelects();
+    $id('configOverlay').classList.remove('open');
+    state.configOpen = false;
+  });
+
+  // Cancel config
+  $id('cancelConfigBtn').addEventListener('click', () => {
+    $id('configOverlay').classList.remove('open');
+    state.configOpen = false;
+  });
+
+  // Reset config
+  $id('resetConfigBtn').addEventListener('click', () => {
+    if (confirm('Reset all configuration to defaults?')) {
+      resetConfig();
+      syncConfigToForm();
+      updateLlmSelects();
+    }
+  });
+
+  // Config form dirty tracking
+  ['cfgTransProvider','cfgTransModel','cfgTransBaseUrl','cfgTransApiKey',
+   'cfgTtsProvider','cfgTtsModel','cfgTtsBaseUrl','cfgTtsApiKey','cfgTtsVoice',
+   'cfgAutoTranslate','cfgSourceLangOverride'].forEach(id => {
+    const el = $id(id);
+    if (el) el.addEventListener('change', markConfigDirty);
+    if (el) el.addEventListener('input', markConfigDirty);
+  });
+
+  // Save Translation preset
+  $id('saveTransPresetBtn').addEventListener('click', () => {
+    const name = $id('cfgTransPreset').value.trim();
+    if (!name) {
+      showToast('Enter a preset name first', 'info');
+      return;
+    }
+    if (state.presets.translation.length >= 5) {
+      showToast('Maximum 5 translation presets', 'info');
+      return;
+    }
+    syncFormToConfig();
+    state.presets.translation.push({
+      name,
+      provider: state.cfg.transLlm.provider,
+      model: state.cfg.transLlm.model,
+      baseUrl: state.cfg.transLlm.baseUrl,
+      apiKey: state.cfg.transLlm.apiKey,
+    });
+    renderPresetList('translation', 'transPresetList', 'cfgTransPreset');
+    updateLlmSelects();
+    $id('cfgTransPreset').value = '';
+    showToast(`Preset "${name}" saved`, 'success');
+  });
+
+  // Save TTS preset
+  $id('saveTtsPresetBtn').addEventListener('click', () => {
+    const name = $id('cfgTtsPreset').value.trim();
+    if (!name) {
+      showToast('Enter a preset name first', 'info');
+      return;
+    }
+    if (state.presets.tts.length >= 5) {
+      showToast('Maximum 5 TTS presets', 'info');
+      return;
+    }
+    syncFormToConfig();
+    state.presets.tts.push({
+      name,
+      provider: state.cfg.ttsLlm.provider,
+      model: state.cfg.ttsLlm.model,
+      baseUrl: state.cfg.ttsLlm.baseUrl,
+      apiKey: state.cfg.ttsLlm.apiKey,
+      voice: state.cfg.ttsLlm.voice,
+    });
+    renderPresetList('tts', 'ttsPresetList', 'cfgTtsPreset');
+    updateLlmSelects();
+    $id('cfgTtsPreset').value = '';
+    showToast(`Preset "${name}" saved`, 'success');
+  });
+
+  // LLM quick selects
+  $id('transLlmSelect').addEventListener('change', e => {
+    if (e.target.value) {
+      loadPresetIntoConfig(state.presets, 'translation', e.target.value);
+      showToast(`Switched to ${e.target.value}`, 'info');
+    }
+  });
+
+  $id('ttsLlmSelect').addEventListener('change', e => {
+    if (e.target.value) {
+      loadPresetIntoConfig(state.presets, 'tts', e.target.value);
+      showToast(`Switched to ${e.target.value}`, 'info');
+    } else {
+      // Browser TTS selected
+      state.cfg.ttsLlm = { ...DEFAULT_CONFIG.ttsLlm };
+      state.cfg.ttsLlm.apiKey = '';
+      state.cfg.ttsLlm.baseUrl = '';
+    }
+  });
+
+  // Politeness label buttons
+  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.zj-politeness-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.cfg.politeness = btn.dataset.value;
+    });
+  });
+
+  // Keyboard: close modal on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && state.configOpen) {
+      $id('configOverlay').classList.remove('open');
+      state.configOpen = false;
+    }
+  });
+}
+
+function clearResults() {
+  state.outputText = '';
+  state.alternatives = [];
+  state.definition = null;
+  state.isUserEdited = false;
+  setOutputHtml('');
+  showAltsBar(false);
+  closeDefPane();
+  clearError();
+  clearAudio();
+}
+
+// ─── Vue Reactive Bindings ────────────────────────────────────────────────────
+
+const app = createApp({
+  setup() {
+    // Reactive toast rendering
+    const toastContainer = ref(null);
+
+    function renderToasts() {
+      const container = $id('toastContainer');
+      if (!container) return;
+      container.innerHTML = state.toastQueue.map(t => `
+        <div class="zj-toast ${t.type}">
+          <i class="ph ${t.type === 'success' ? 'ph-check-circle' : t.type === 'error' ? 'ph-warning-circle' : 'ph-info'}"></i>
+          <span>${escapeHtml(t.msg)}</span>
+        </div>
+      `).join('');
+    }
+
+    watch(() => state.toastQueue.length, renderToasts);
+    watch(() => state.isTranslating, (val) => {
+      $id('outputLoading').style.display = val ? 'flex' : 'none';
+      $id('translateBtn').disabled = val;
+    });
+
+    return { state, toastContainer };
+  }
+});
+
+const vm = app.mount(document.body);
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+loadConfig();
+populateLangDropdowns();
+updateLlmSelects();
+bindEvents();
+
+// Auto-open config if no API key set
+if (!state.cfg.transLlm.apiKey) {
+  setTimeout(() => {
+    $id('configBtn').click();
+  }, 500);
+}
+
+// Watch politeness changes
+watch(() => state.cfg.politeness, () => {
+  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === state.cfg.politeness);
+  });
+});
+
+</script>
+</body>
+</html>
