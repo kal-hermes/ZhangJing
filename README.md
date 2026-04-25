@@ -1,8 +1,8 @@
-# ZhangJing (樟京)
+# ZhangJing (张京)
 
 > A bring-your-own-LLM translation workbench — privacy-first, runs entirely in your browser.
 
-ZhangJing replicates DeepL Desktop's most-loved features (selectable alternatives, polite form options, definitions pane) while letting you plug in your own LLM API keys. No data leaves your browser.
+ZhangJing replicates the most-loved features of proprietary translator applications (selectable alternatives, polite form options, definitions pane) while letting you plug in your own LLM API keys. All LLM credentials stay in your browser local storage.
 
 ## Features
 

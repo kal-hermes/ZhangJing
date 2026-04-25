@@ -2,7 +2,7 @@
 
 ## 1. Concept & Vision
 
-ZhangJing (樟京, "Camphor Tree of the Capital") is a self-hosted, privacy-first translation workbench that lets you plug in your own LLM API keys. It replicates DeepL Desktop's most-loved features — selectable alternatives, polite form options, and a definitions pane — while giving users full control over which AI providers power translation and TTS. It feels like a professional desktop tool that happens to run in a browser.
+ZhangJing (张京) is a self-hosted, privacy-first translation workbench that lets you plug in your own LLM API keys. It replicates the most-loved features of proprietary translator applications — selectable alternatives, polite form options, and a definitions pane — while giving users full control over which AI providers power translation and TTS. It feels like a professional desktop tool that happens to run in a browser.
 
 ## 2. Design Language
 
