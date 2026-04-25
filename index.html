@@ -1794,15 +1794,39 @@ function renderPresetList(type, containerId, presetInputId) {
   }
 
   container.innerHTML = list.map((p, i) => `
-    <div class="zj-preset-item">
+    <div class="zj-preset-item" data-type="${type}" data-index="${i}" style="cursor:pointer;">
       <span class="zj-preset-name">${escapeHtml(p.name)}</span>
       <span class="zj-preset-model">${escapeHtml(p.model)}${p.voice ? ' · ' + escapeHtml(p.voice) : ''}</span>
-      <button class="zj-preset-delete" data-type="${type}" data-index="${i}" title="Delete preset">&times;</button>
+      <button class="zj-preset-delete" data-type="${type}" data-index="${i}" title="Delete preset" onclick="event.stopPropagation();">&times;</button>
     </div>
   `).join('');
 
+  container.querySelectorAll('.zj-preset-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const idx = parseInt(item.dataset.index);
+      const type = item.dataset.type;
+      const preset = state.presets[type][idx];
+      if (type === 'translation') {
+        $id('cfgTransPreset').value = preset.name;
+        $id('cfgTransProvider').value = preset.provider || 'openai';
+        $id('cfgTransModel').value = preset.model || '';
+        $id('cfgTransBaseUrl').value = preset.baseUrl || '';
+        $id('cfgTransApiKey').value = preset.apiKey || '';
+      } else if (type === 'tts') {
+        $id('cfgTtsPreset').value = preset.name;
+        $id('cfgTtsProvider').value = preset.provider || 'openai';
+        $id('cfgTtsModel').value = preset.model || '';
+        $id('cfgTtsBaseUrl').value = preset.baseUrl || '';
+        $id('cfgTtsApiKey').value = preset.apiKey || '';
+        $id('cfgTtsVoice').value = preset.voice || 'alloy';
+      }
+      showToast(`Loaded "${preset.name}" — edit and save a new preset to keep changes`, 'info');
+    });
+  });
+
   container.querySelectorAll('.zj-preset-delete').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
       const idx = parseInt(btn.dataset.index);
       state.presets[btn.dataset.type].splice(idx, 1);
       renderPresetList(type, containerId, presetInputId);
@@ -2015,13 +2039,6 @@ function bindEvents() {
   $id('configClose').addEventListener('click', () => {
     $id('configOverlay').classList.remove('open');
     state.configOpen = false;
-  });
-
-  $id('configOverlay').addEventListener('click', e => {
-    if (e.target === $id('configOverlay')) {
-      $id('configOverlay').classList.remove('open');
-      state.configOpen = false;
-    }
   });
 
   // Politeness buttons
