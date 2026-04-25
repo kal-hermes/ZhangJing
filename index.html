@@ -954,10 +954,11 @@
         </div>
 
         <div class="zj-form-group">
-          <label class="zj-form-label" for="cfgTtsPreset">Preset Name</label>
-          <div style="display:flex;gap:8px;">
-            <input type="text" id="cfgTtsPreset" class="zj-form-input" placeholder="e.g. OpenAI TTS" style="flex:1;">
-            <button class="zj-action-btn primary" id="saveTtsPresetBtn" style="flex-shrink:0;">Save Preset</button>
+          <label class="zj-form-label" for="cfgTtsPreset">Save as New Preset</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="cfgTtsPreset" class="zj-form-input" placeholder="Preset name (e.g. OpenAI TTS)" style="flex:1;">
+            <input type="text" id="cfgTtsVoice" class="zj-form-input" placeholder="e.g. alloy" style="width:130px;" title="Voice identifier — format varies by provider (OpenAI uses: alloy, echo, nova...)">
+            <button class="zj-action-btn primary" id="saveTtsPresetBtn" style="flex-shrink:0;">Save</button>
           </div>
         </div>
 
@@ -987,18 +988,6 @@
         <div class="zj-form-group">
           <label class="zj-form-label" for="cfgTtsApiKey">API Key</label>
           <input type="password" id="cfgTtsApiKey" class="zj-form-input" placeholder="sk-...">
-        </div>
-
-        <div class="zj-form-group">
-          <label class="zj-form-label" for="cfgTtsVoice">Voice</label>
-          <select id="cfgTtsVoice" class="zj-form-input" style="font-family:'Source Sans 3',sans-serif;">
-            <option value="alloy">Alloy (neutral)</option>
-            <option value="echo">Echo (male)</option>
-            <option value="fable">Fable (male)</option>
-            <option value="onyx">Onyx (male)</option>
-            <option value="nova">Nova (female)</option>
-            <option value="shimmer">Shimmer (female)</option>
-          </select>
         </div>
       </div>
 
@@ -1807,7 +1796,7 @@ function renderPresetList(type, containerId, presetInputId) {
   container.innerHTML = list.map((p, i) => `
     <div class="zj-preset-item">
       <span class="zj-preset-name">${escapeHtml(p.name)}</span>
-      <span class="zj-preset-model">${escapeHtml(p.model)}</span>
+      <span class="zj-preset-model">${escapeHtml(p.model)}${p.voice ? ' · ' + escapeHtml(p.voice) : ''}</span>
       <button class="zj-preset-delete" data-type="${type}" data-index="${i}" title="Delete preset">&times;</button>
     </div>
   `).join('');
@@ -1834,7 +1823,6 @@ function syncConfigToForm() {
   $id('cfgTtsModel').value = state.cfg.ttsLlm.model || '';
   $id('cfgTtsBaseUrl').value = state.cfg.ttsLlm.baseUrl || '';
   $id('cfgTtsApiKey').value = state.cfg.ttsLlm.apiKey || '';
-  $id('cfgTtsVoice').value = state.cfg.ttsLlm.voice || 'alloy';
 
   // Politeness
   document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
@@ -1862,7 +1850,6 @@ function syncFormToConfig() {
     model: $id('cfgTtsModel').value,
     baseUrl: $id('cfgTtsBaseUrl').value,
     apiKey: $id('cfgTtsApiKey').value,
-    voice: $id('cfgTtsVoice').value,
   };
   state.cfg.autoTranslate = $id('cfgAutoTranslate').checked;
   state.cfg.sourceLangOverride = $id('cfgSourceLangOverride').value.trim();
@@ -2073,7 +2060,7 @@ function bindEvents() {
 
   // Config form dirty tracking
   ['cfgTransProvider','cfgTransModel','cfgTransBaseUrl','cfgTransApiKey',
-   'cfgTtsProvider','cfgTtsModel','cfgTtsBaseUrl','cfgTtsApiKey','cfgTtsVoice',
+   'cfgTtsProvider','cfgTtsModel','cfgTtsBaseUrl','cfgTtsApiKey',
    'cfgAutoTranslate','cfgSourceLangOverride'].forEach(id => {
     const el = $id(id);
     if (el) el.addEventListener('change', markConfigDirty);
@@ -2123,11 +2110,12 @@ function bindEvents() {
       model: state.cfg.ttsLlm.model,
       baseUrl: state.cfg.ttsLlm.baseUrl,
       apiKey: state.cfg.ttsLlm.apiKey,
-      voice: state.cfg.ttsLlm.voice,
+      voice: $id('cfgTtsVoice').value.trim() || 'alloy',
     });
     renderPresetList('tts', 'ttsPresetList', 'cfgTtsPreset');
     updateLlmSelects();
     $id('cfgTtsPreset').value = '';
+    $id('cfgTtsVoice').value = '';
     showToast(`Preset "${name}" saved`, 'success');
   });
 
