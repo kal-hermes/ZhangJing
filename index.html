@@ -1193,16 +1193,16 @@ function resetConfig() {
 // ─── LLM Provider bridge ─────────────────────────────────────────────────────
 // Uses the bundled provider system (providers-shim.js → window.__zhangjing)
 
-const { callLlm: _callLlm, resolveProvider } = window.__zhangjing || {};
+const { callLlm: _callLlm, resolveProvider, listProviders: _listProviders } = window.__zhangjing || {};
 
 /**
- * @param {{ baseUrl:string, apiKey:string, model:string, messages:Array, response_format?:object }} opts
+ * @param {{ baseUrl:string, apiKey:string, model:string, messages:Array, response_format?:object, provider?:string }} opts
  * Returns the content string (reasoning already stripped by the provider).
  */
-async function callLlm({ baseUrl, apiKey, model, messages, response_format }) {
+async function callLlm({ baseUrl, apiKey, model, messages, response_format, provider }) {
   if (!_callLlm) throw new Error('Provider bundle not loaded. Run: node build-providers.mjs');
 
-  const config = { provider: 'openai-compatible', baseUrl, apiKey, model };
+  const config = { provider: provider || 'openai-compatible', baseUrl, apiKey, model };
   const result = await _callLlm({ config, messages, reasoning: { mode: 'off' } });
   return result.content;
 }
@@ -1354,6 +1354,7 @@ async function doTranslate() {
       baseUrl: state.cfg.transLlm.baseUrl,
       apiKey: state.cfg.transLlm.apiKey,
       model: state.cfg.transLlm.model,
+      provider: state.cfg.transLlm.provider,
       messages,
     });
 
@@ -1391,6 +1392,7 @@ async function doSuggestAlternatives() {
       baseUrl: state.cfg.transLlm.baseUrl,
       apiKey: state.cfg.transLlm.apiKey,
       model: state.cfg.transLlm.model,
+      provider: state.cfg.transLlm.provider,
       messages,
     });
 
@@ -1567,6 +1569,7 @@ async function doLookupDefinition(selectedText) {
       baseUrl: state.cfg.transLlm.baseUrl,
       apiKey: state.cfg.transLlm.apiKey,
       model: state.cfg.transLlm.model,
+      provider: state.cfg.transLlm.provider,
       messages,
     });
 
@@ -1746,6 +1749,29 @@ function populateLangDropdowns() {
   tgtSelect.innerHTML = LANGUAGES.filter(l => l.code !== 'auto').map(l =>
     `<option value="${l.code}"${l.code === state.tgtLang ? ' selected' : ''}>${l.name}</option>`
   ).join('');
+}
+
+function populateProviderSelects() {
+  if (!_listProviders) return;
+  const providers = _listProviders();
+
+  const transSelect = $id('cfgTransProvider');
+  const ttsSelect = $id('cfgTtsProvider');
+  if (!transSelect || !ttsSelect) return;
+
+  const transCurrent = transSelect.value;
+  const ttsCurrent = ttsSelect.value;
+
+  transSelect.innerHTML = providers.map(p =>
+    `<option value="${p.id}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
+  ).join('');
+  ttsSelect.innerHTML = providers.map(p =>
+    `<option value="${p.id}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
+  ).join('');
+
+  // Restore selections if still valid
+  if (providers.find(p => p.id === transCurrent)) transSelect.value = transCurrent;
+  if (providers.find(p => p.id === ttsCurrent)) ttsSelect.value = ttsCurrent;
 }
 
 function updateLlmSelects() {
@@ -2212,6 +2238,7 @@ const vm = app.mount(document.body);
 
 loadConfig();
 populateLangDropdowns();
+populateProviderSelects();
 updateLlmSelects();
 bindEvents();
 
