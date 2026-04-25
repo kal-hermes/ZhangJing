@@ -16,6 +16,10 @@
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
 
+  <!-- Provider bundle (built via: node build-providers.mjs) -->
+  <!-- IIFE: assigns window.__zhangjing = { callLlm, streamLlm, resolveProvider, listProviders } -->
+  <script src="./dist/providers-shim.js"></script>
+
   <style>
     :root {
       --bg: #F7F6F3;
@@ -1186,6 +1190,23 @@ function resetConfig() {
   showToast('Config reset to defaults', 'info');
 }
 
+// ─── LLM Provider bridge ─────────────────────────────────────────────────────
+// Uses the bundled provider system (providers-shim.js → window.__zhangjing)
+
+const { callLlm: _callLlm, resolveProvider } = window.__zhangjing || {};
+
+/**
+ * @param {{ baseUrl:string, apiKey:string, model:string, messages:Array, response_format?:object }} opts
+ * Returns the content string (reasoning already stripped by the provider).
+ */
+async function callLlm({ baseUrl, apiKey, model, messages, response_format }) {
+  if (!_callLlm) throw new Error('Provider bundle not loaded. Run: node build-providers.mjs');
+
+  const config = { provider: 'openai-compatible', baseUrl, apiKey, model };
+  const result = await _callLlm({ config, messages, reasoning: { mode: 'off' } });
+  return result.content;
+}
+
 function buildChatUrl(baseUrl) {
   let url = baseUrl.trim();
   if (!url.endsWith('/')) url += '/';
@@ -1196,35 +1217,6 @@ function buildTtsUrl(baseUrl) {
   let url = baseUrl.trim();
   if (!url.endsWith('/')) url += '/';
   return url + 'audio/speech';
-}
-
-async function callLlm({ baseUrl, apiKey, model, messages, response_format }) {
-  const url = buildChatUrl(baseUrl);
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
-  };
-  const body = {
-    model,
-    messages,
-    temperature: 0.3,
-  };
-  if (response_format) body.response_format = response_format;
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => '');
-    throw new Error(`LLM API error ${resp.status}: ${errText || resp.statusText}`);
-  }
-
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
 }
 
 // ─── Translation Logic ───────────────────────────────────────────────────────
