@@ -164,8 +164,8 @@
     .zj-panes {
       display: flex;
       gap: 16px;
-      flex: 1;
-      min-height: 0;
+      flex: 0 0 auto;
+      min-height: 320px;
     }
 
     .zj-pane-card {
@@ -308,6 +308,32 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Politeness quick row (workspace; visible for ja/ko targets) */
+    .zj-pol-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .zj-pol-row[hidden] { display: none; }
+
+    .zj-pol-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .zj-pol-inline {
+      padding: 3px 10px;
+      font-size: 0.78rem;
+    }
+
     /* Alternatives bar */
     .zj-alts-bar {
       background: var(--surface);
@@ -355,6 +381,16 @@
 
     .zj-alt-chip:hover { background: var(--primary); color: white; }
     .zj-alt-chip.applied { background: var(--success); border-color: var(--success); color: white; }
+
+    .zj-alt-chip-num { font-weight: 600; }
+
+    .zj-alt-chip-text {
+      display: inline-block;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
 
     .zj-alt-shimmer {
       height: 32px;
@@ -920,6 +956,12 @@
 <!-- Main area -->
 <main class="zj-main">
 
+  <!-- Politeness quick row (contextual: ja/ko targets only) -->
+  <div class="zj-pol-row" id="polRow" hidden>
+    <span class="zj-pol-label"><i class="ph ph-hand-waving"></i> Politeness</span>
+    <div class="zj-pol-chips" id="polChips" role="group" aria-label="Politeness level"></div>
+  </div>
+
   <!-- Alternatives bar -->
   <div class="zj-alts-bar" id="altsBar" role="region" aria-label="Alternative translations">
     <div class="zj-alts-label">Alternative Translations</div>
@@ -1221,7 +1263,13 @@ const LANGUAGES = [
   { code: 'id',   name: 'Indonesian' },
 ];
 
-const POLITENESS_LEVELS = ['auto', 'casual', 'polite', 'formal', 'humble'];
+const POLITENESS_LEVELS = [
+  ['auto', 'Auto'],
+  ['casual', 'Casual'],
+  ['polite', 'Polite'],
+  ['formal', 'Formal'],
+  ['humble', 'Humble'],
+];
 
 const DEFAULT_CONFIG = {
   transLlm: {
@@ -1315,12 +1363,12 @@ function loadConfig() {
   }
 }
 
-function saveConfig() {
+function saveConfig(silent) {
   try {
     localStorage.setItem('zj_config', JSON.stringify({ config: state.cfg, presets: state.presets }));
     localStorage.setItem('zj_presets', JSON.stringify(state.presets));
     state.configDirty = false;
-    showToast('Configuration saved', 'success');
+    if (!silent) showToast('Configuration saved', 'success');
   } catch(e) {
     showToast('Failed to save config: ' + e.message, 'error');
   }
@@ -1360,6 +1408,7 @@ function commitConfigDraft() {
   state.cfgDraft = null;
   saveConfig();
   updateLlmSelects();
+  renderPolRow();
   closeConfigModal();
 }
 
@@ -1411,6 +1460,37 @@ function restoreSessionSelects() {
   if (pendingSessionPresets.trans) $id('transLlmSelect').value = pendingSessionPresets.trans;
   if (pendingSessionPresets.tts) $id('ttsLlmSelect').value = pendingSessionPresets.tts;
   pendingSessionPresets = null;
+}
+
+// ─── Politeness quick row (workspace) ────────────────────────────────────────
+// Surface the politeness control beside the translation it governs whenever
+// the target is Japanese or Korean — it is a defining feature, not a setting.
+// Levels come from the POLITENESS_LEVELS constant above.
+
+function isPolitenessRelevant() {
+  return state.tgtLang === 'ja' || state.tgtLang === 'ko'
+    || state.cfg.sourceLangOverride === 'ja' || state.cfg.sourceLangOverride === 'ko';
+}
+
+function renderPolRow() {
+  const row = $id('polRow');
+  if (!row) return;
+  row.hidden = !isPolitenessRelevant();
+  $id('polChips').innerHTML = POLITENESS_LEVELS.map(([v, label]) =>
+    `<button class="zj-politeness-btn zj-pol-inline${state.cfg.politeness === v ? ' active' : ''}" data-value="${v}" aria-pressed="${state.cfg.politeness === v}">${label}</button>`
+  ).join('');
+  $id('polChips').querySelectorAll('.zj-pol-inline').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.cfg.politeness = btn.dataset.value;
+      $id('polChips').querySelectorAll('.zj-politeness-btn').forEach(b => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      saveConfig(true); // persists silently; applies to the next translation
+      showToast(`Politeness: ${btn.textContent} — applies to the next translation`, 'info', 2200);
+    });
+  });
 }
 
 // ─── LLM Provider bridge ─────────────────────────────────────────────────────
@@ -1957,7 +2037,8 @@ function renderAlternatives(alts) {
 
   scroll.innerHTML = alts.map((alt, i) => `
     <button class="zj-alt-chip" data-id="${alt.id}" data-index="${i}" title="${escapeHtml(alt.text)}">
-      <span>Alt ${alt.id}</span>
+      <span class="zj-alt-chip-num">Alt ${alt.id}</span>
+      <span class="zj-alt-chip-text">${escapeHtml(alt.text)}</span>
     </button>
   `).join('');
 
@@ -2195,7 +2276,7 @@ function syncConfigToForm() {
   $id('cfgTtsApiKey').value = cfg.ttsLlm.apiKey || '';
 
   // Politeness
-  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+  document.querySelectorAll('#configOverlay .zj-politeness-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === cfg.politeness);
   });
 
@@ -2632,6 +2713,7 @@ function bindEvents() {
     $id('inputCharCount').textContent = `${state.inputText.length} chars`;
     setOutputHtml(escapeHtml(state.outputText));
     saveSession();
+    renderPolRow();
     // Animate swap button
     const btn = $id('swapBtn');
     btn.classList.add('swapped');
@@ -2646,6 +2728,7 @@ function bindEvents() {
   $id('tgtLang').addEventListener('change', e => {
     state.tgtLang = e.target.value;
     clearResults();
+    renderPolRow();
   });
 
   // Output pane - track user edits
@@ -2732,10 +2815,10 @@ function bindEvents() {
   $id('configClose').addEventListener('click', requestCloseConfig);
 
   // Politeness buttons (modal-only; edits the draft, applied on Save)
-  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+  document.querySelectorAll('#configOverlay .zj-politeness-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (!state.cfgDraft) return;
-      document.querySelectorAll('.zj-politeness-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#configOverlay .zj-politeness-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.cfgDraft.cfg.politeness = btn.dataset.value;
       markConfigDirty();
@@ -2926,6 +3009,7 @@ populateProviderSelects();
 updateLlmSelects();
 restoreSessionSelects();
 bindEvents();
+renderPolRow();
 
 // Auto-open config if no API key set
 if (!state.cfg.transLlm.apiKey) {
@@ -2934,9 +3018,9 @@ if (!state.cfg.transLlm.apiKey) {
   }, 500);
 }
 
-// Watch politeness changes
+// Watch politeness changes: keep the workspace quick-row in sync
 watch(() => state.cfg.politeness, () => {
-  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
+  document.querySelectorAll('#polRow .zj-politeness-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === state.cfg.politeness);
   });
 });
