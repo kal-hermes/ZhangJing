@@ -75,8 +75,8 @@ register(new TogetherProvider());
 import { HyperbolicProvider } from './hyperbolic';
 register(new HyperbolicProvider());
 
-import { SambaNovaProvider } from './sambanova';
-register(new SambaNovaProvider());
+import { ZaiProvider } from './zai';
+register(new ZaiProvider());
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 

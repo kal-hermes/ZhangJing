@@ -33,7 +33,7 @@ A proprietary translator cannot truthfully claim "your source text and API keys 
 - Politeness control for Japanese/Korean output.
 - Definitions pane: highlight a word in the output to look it up via the configured LLM.
 - TTS via a dedicated LLM preset or browser TTS fallback; MP3 download with timestamped filename.
-- 24 provider adapters (OpenAI-compatible, native OpenAI, Anthropic, Gemini, Vertex, Bedrock, Ollama, DeepSeek, Groq, Mistral, Moonshot, MiniMax, xAI, OpenRouter, Together, Fireworks, SambaNova, Hyperbolic, LM Studio, Vercel AI Gateway, and more).
+- 21 provider adapters (OpenAI-compatible generic, native OpenAI, Anthropic, Gemini, Vertex, Bedrock, Ollama, DeepSeek, Groq, Mistral, Moonshot, MiniMax, xAI, OpenRouter, Together, Fireworks, SambaNova, Hyperbolic, LM Studio, Vercel AI Gateway, Z.ai/BigModel).
 - Constraints: CDN-only dependencies for the main app; single-file architecture (`index.html`); no backend of any kind; user edits to output are preserved (warned on overwrite).
 - Deliberately undecided / next planned feature (NEXT_STEPS.md): click-inside-translation to get LLM alternatives for a contiguous token unit around the caret, or for the span of units a selection crosses; structured-JSON response shape (default translation + alternatives) under consideration. Not yet designed or committed.
 
