@@ -1941,10 +1941,14 @@ function populateProviderSelects() {
   const ttsCurrent = ttsSelect.value;
 
   transSelect.innerHTML = providers.map(p =>
-    `<option value="${p.id}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
+    `<option value="${p.id}" title="${p.supportsReasoning
+      ? escapeHtml(`${p.label} — adapter supports reasoning/thinking models (thinking is kept out of the translation)`)
+      : escapeHtml(`${p.label} — no reasoning support; use plain (non-thinking) models`)}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
   ).join('');
   ttsSelect.innerHTML = providers.map(p =>
-    `<option value="${p.id}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
+    `<option value="${p.id}" title="${p.supportsReasoning
+      ? escapeHtml(`${p.label} — adapter supports reasoning/thinking models (thinking is kept out of the translation)`)
+      : escapeHtml(`${p.label} — no reasoning support; use plain (non-thinking) models`)}">${p.label}${p.supportsReasoning ? ' ★' : ''}</option>`
   ).join('');
 
   // Restore selections if still valid
