@@ -27,6 +27,9 @@
       --primary: #2B5797;
       --primary-hover: #1E3F6F;
       --accent: #E8913A;
+      /* Darker amber for non-text indicators; #E8913A fails the 3:1 non-text
+         minimum on white (2.46:1), this passes at ~4.7:1 */
+      --accent-strong: #A86311;
       --text: #1A1A1A;
       --text-secondary: #6B6B6B;
       --border: #DEDDD8;
@@ -217,8 +220,11 @@
       overflow-y: auto;
     }
 
-    .zj-input-textarea:focus { outline: none; }
-    .zj-input-textarea::placeholder { color: #B0AFA9; }
+    .zj-input-textarea:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: -2px;
+    }
+    .zj-input-textarea::placeholder { color: var(--text-secondary); }
 
     .zj-output-div {
       flex: 1;
@@ -237,15 +243,17 @@
 
     .zj-output-div:empty::before {
       content: attr(data-placeholder);
-      color: #B0AFA9;
+      color: var(--text-secondary);
       pointer-events: none;
     }
 
-    .zj-output-div[contenteditable="true"]:focus { outline: none; }
+    .zj-output-div[contenteditable="true"]:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: -2px;
+    }
 
     .zj-output-div.user-edited {
-      font-style: italic;
-      border-left: 3px solid var(--accent);
+      border-left: 3px solid var(--accent-strong);
       padding-left: 13px;
     }
 
@@ -563,7 +571,15 @@
     }
 
     .zj-action-btn:focus-visible,
-    .zj-seg-alt:focus-visible {
+    .zj-seg-alt:focus-visible,
+    .zj-lang-select:focus-visible,
+    .zj-llm-select:focus-visible,
+    .zj-form-input:focus-visible,
+    .zj-politeness-btn:focus-visible,
+    .zj-preset-item:focus-visible,
+    .zj-preset-delete:focus-visible,
+    .zj-modal-close:focus-visible,
+    .zj-def-close:focus-visible {
       outline: 2px solid var(--primary);
       outline-offset: 1px;
     }
@@ -700,7 +716,7 @@
     }
 
     .zj-form-input:focus { outline: none; border-color: var(--primary); }
-    .zj-form-input::placeholder { color: #B0AFA9; }
+    .zj-form-input::placeholder { color: var(--text-secondary); }
 
     .zj-form-row {
       display: grid;
@@ -947,7 +963,7 @@
     <div class="zj-pane-card">
       <div class="zj-pane-header">
         <span class="zj-pane-title">Translation</span>
-        <span id="outputLoading" class="hidden" style="font-size:0.8rem;color:var(--accent);display:flex;align-items:center;gap:5px;">
+        <span id="outputLoading" class="hidden" style="font-size:0.8rem;color:var(--primary);display:flex;align-items:center;gap:5px;">
           <span class="spinner"></span> Translating...
         </span>
       </div>
@@ -1086,7 +1102,7 @@
           <label class="zj-form-label" for="cfgTtsPreset">Save as New Preset</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="text" id="cfgTtsPreset" class="zj-form-input" placeholder="Preset name (e.g. OpenAI TTS)" style="flex:1;">
-            <input type="text" id="cfgTtsVoice" class="zj-form-input" placeholder="e.g. alloy" style="width:130px;" title="Voice identifier — format varies by provider (OpenAI uses: alloy, echo, nova...)">
+            <input type="text" id="cfgTtsVoice" class="zj-form-input" placeholder="e.g. alloy" style="width:130px;" title="Voice identifier — format varies by provider (OpenAI uses: alloy, echo, nova...)" aria-label="TTS voice">
             <button class="zj-action-btn primary" id="saveTtsPresetBtn" style="flex-shrink:0;">Save</button>
           </div>
         </div>
@@ -1148,7 +1164,7 @@
         </div>
         <div class="zj-form-group">
           <label class="zj-form-label">Source Text Language (auto-detect if empty)</label>
-          <input type="text" id="cfgSourceLangOverride" class="zj-form-input" placeholder="e.g. ja, ko, en (leave empty for auto)">
+          <input type="text" id="cfgSourceLangOverride" class="zj-form-input" placeholder="e.g. ja, ko, en (leave empty for auto)" aria-label="Source language override">
         </div>
       </div>
 
@@ -1169,7 +1185,7 @@
 </div>
 
 <!-- Toast container -->
-<div class="zj-toast-container" id="toastContainer"></div>
+<div class="zj-toast-container" id="toastContainer" aria-live="polite"></div>
 
 <!-- Vue 3 + app -->
 <script type="module">
@@ -1326,6 +1342,10 @@ function closeConfigModal() {
   state.configOpen = false;
   $id('configOverlay').classList.remove('open');
   state.cfgDraft = null;
+  if (configReturnFocus && document.contains(configReturnFocus)) {
+    configReturnFocus.focus();
+  }
+  configReturnFocus = null;
 }
 
 function requestCloseConfig() {
@@ -1346,6 +1366,7 @@ function commitConfigDraft() {
 // ─── Session persistence (best-effort; never blocks the UI) ──────────────────
 
 let pendingSessionPresets = null;
+let configReturnFocus = null;
 
 function saveSession() {
   try {
@@ -2112,7 +2133,7 @@ function renderPresetList(type, containerId, presetInputId) {
   }
 
   container.innerHTML = list.map((p, i) => `
-    <div class="zj-preset-item" data-type="${type}" data-index="${i}" style="cursor:pointer;">
+    <div class="zj-preset-item" data-type="${type}" data-index="${i}" style="cursor:pointer;" tabindex="0" role="button" aria-label="Load preset ${escapeHtml(p.name)}">
       <span class="zj-preset-name">${escapeHtml(p.name)}</span>
       <span class="zj-preset-model">${escapeHtml(p.model)}${p.voice ? ' · ' + escapeHtml(p.voice) : ''}</span>
       <button class="zj-preset-delete" data-type="${type}" data-index="${i}" title="Delete preset" onclick="event.stopPropagation();">&times;</button>
@@ -2139,6 +2160,12 @@ function renderPresetList(type, containerId, presetInputId) {
         $id('cfgTtsVoice').value = preset.voice || 'alloy';
       }
       showToast(`Loaded "${preset.name}" — edit and save a new preset to keep changes`, 'info');
+    });
+    item.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        item.click();
+      }
     });
   });
 
@@ -2697,6 +2724,9 @@ function bindEvents() {
     syncConfigToForm();
     state.configOpen = true;
     $id('configOverlay').classList.add('open');
+    // Focus management: remember where we came from, start on the first field
+    configReturnFocus = document.activeElement;
+    $id('cfgTransPreset').focus();
   });
 
   $id('configClose').addEventListener('click', requestCloseConfig);
@@ -2814,7 +2844,7 @@ function bindEvents() {
     saveSession();
   });
 
-  // Keyboard: close popup first, then modal, on Escape
+  // Keyboard: close popup first, then modal, on Escape; trap Tab in the modal
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (segPopup.open) {
@@ -2823,6 +2853,21 @@ function bindEvents() {
       }
       if (state.configOpen) {
         requestCloseConfig();
+      }
+      return;
+    }
+    if (e.key === 'Tab' && state.configOpen) {
+      const overlay = $id('configOverlay');
+      const focusables = overlay.querySelectorAll('button, input, select, [tabindex]:not([tabindex="-1"])');
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     }
   });
