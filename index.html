@@ -635,13 +635,14 @@
       color: var(--text-secondary);
     }
 
-    .zj-footer-hint kbd {
+    kbd {
       background: #EEF3FA;
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 1px 5px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.75rem;
+      color: inherit; /* Bootstrap's kbd is white-on-light here (1.1:1) */
     }
 
     /* Config Modal */
