@@ -36,6 +36,18 @@
       --success: #2D7D46;
       --error: #C0392B;
       --code: #2D3748;
+      /* Derived fills — tokenized so a future dark theme swaps one layer */
+      --surface-subtle: #FAFAF8;   /* header strips, preset cards */
+      --primary-tint: #EEF3FA;     /* primary hover fill, kbd & info chips */
+      --surface-muted: #F0EFED;    /* neutral hover fill, code chips, disabled */
+      --skeleton-shine: #E8E7E4;   /* shimmer highlight (with --surface-muted) */
+      --error-tint: #FDECEA;
+      --error-border: #F5B8B3;
+      --success-tint: #EAF5EE;
+      --success-border: #B8DFC8;
+      --info-border: #BDD0E8;
+      --scrollbar-thumb: #CBCAC5;
+      --scrollbar-thumb-hover: #A8A7A2;
     }
 
     * { box-sizing: border-box; }
@@ -186,7 +198,7 @@
       justify-content: space-between;
       padding: 10px 16px;
       border-bottom: 1px solid var(--border);
-      background: #FAFAF8;
+      background: var(--surface-subtle);
     }
 
     .zj-pane-title {
@@ -269,7 +281,7 @@
       justify-content: space-between;
       padding: 8px 16px;
       border-top: 1px solid var(--border);
-      background: #FAFAF8;
+      background: var(--surface-subtle);
       gap: 8px;
     }
 
@@ -290,7 +302,7 @@
       white-space: nowrap;
     }
 
-    .zj-action-btn:hover { border-color: var(--primary); color: var(--primary); background: #EEF3FA; }
+    .zj-action-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-tint); }
     .zj-action-btn:active { transform: scale(0.97); }
     .zj-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .zj-action-btn:disabled:hover { border-color: var(--border); color: var(--text-secondary); background: var(--surface); }
@@ -395,7 +407,7 @@
     .zj-alt-shimmer {
       height: 32px;
       border-radius: 20px;
-      background: linear-gradient(90deg, #F0EFED 25%, #E8E7E4 50%, #F0EFED 75%);
+      background: linear-gradient(90deg, var(--surface-muted) 25%, var(--skeleton-shine) 50%, var(--surface-muted) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.4s infinite;
       flex-shrink: 0;
@@ -449,7 +461,7 @@
       text-transform: uppercase;
       padding: 2px 8px;
       border-radius: 4px;
-      background: #EEF3FA;
+      background: var(--primary-tint);
       color: var(--primary);
       margin-left: 8px;
     }
@@ -465,7 +477,7 @@
       transition: all 200ms;
     }
 
-    .zj-def-close:hover { background: #F0EFED; color: var(--error); }
+    .zj-def-close:hover { background: var(--surface-muted); color: var(--error); }
 
     .zj-def-list {
       list-style: decimal;
@@ -509,7 +521,7 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.7rem;
       color: var(--text);
-      background: #F0EFED;
+      background: var(--surface-muted);
       padding: 1px 4px;
       border-radius: 3px;
     }
@@ -587,14 +599,14 @@
       word-break: break-word;
     }
 
-    .zj-seg-alt:hover { border-color: var(--primary); background: #EEF3FA; color: var(--primary); }
+    .zj-seg-alt:hover { border-color: var(--primary); background: var(--primary-tint); color: var(--primary); }
     .zj-seg-alt:active { transform: scale(0.98); }
 
     .zj-seg-skeleton {
       height: 30px;
       border-radius: 6px;
       margin-bottom: 6px;
-      background: linear-gradient(90deg, #F0EFED 25%, #E8E7E4 50%, #F0EFED 75%);
+      background: linear-gradient(90deg, var(--surface-muted) 25%, var(--skeleton-shine) 50%, var(--surface-muted) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.4s infinite;
     }
@@ -636,7 +648,7 @@
     }
 
     kbd {
-      background: #EEF3FA;
+      background: var(--primary-tint);
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 1px 5px;
@@ -702,7 +714,7 @@
       transition: all 200ms;
     }
 
-    .zj-modal-close:hover { background: #F0EFED; color: var(--error); }
+    .zj-modal-close:hover { background: var(--surface-muted); color: var(--error); }
 
     .zj-modal-body {
       flex: 1;
@@ -798,7 +810,7 @@
       padding: 8px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      background: #FAFAF8;
+      background: var(--surface-subtle);
     }
 
     .zj-preset-name {
@@ -824,7 +836,7 @@
       transition: all 200ms;
     }
 
-    .zj-preset-delete:hover { color: var(--error); background: #FDF0EF; }
+    .zj-preset-delete:hover { color: var(--error); background: var(--error-tint); }
 
     .zj-modal-footer {
       display: flex;
@@ -858,9 +870,9 @@
       max-width: 320px;
     }
 
-    .zj-toast.success { background: #EAF5EE; color: var(--success); border: 1px solid #B8DFC8; }
-    .zj-toast.error { background: #FDECEA; color: var(--error); border: 1px solid #F5B8B3; }
-    .zj-toast.info { background: #EEF3FA; color: var(--primary); border: 1px solid #BDD0E8; }
+    .zj-toast.success { background: var(--success-tint); color: var(--success); border: 1px solid var(--success-border); }
+    .zj-toast.error { background: var(--error-tint); color: var(--error); border: 1px solid var(--error-border); }
+    .zj-toast.info { background: var(--primary-tint); color: var(--primary); border: 1px solid var(--info-border); }
 
     @keyframes toastIn {
       from { opacity: 0; transform: translateY(10px); }
@@ -869,8 +881,8 @@
 
     /* Error banner */
     .zj-error-banner {
-      background: #FDECEA;
-      border: 1px solid #F5B8B3;
+      background: var(--error-tint);
+      border: 1px solid var(--error-border);
       border-radius: 6px;
       padding: 8px 14px;
       display: none;
@@ -948,8 +960,8 @@
     /* Scrollbar styling */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #CBCAC5; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #A8A7A2; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
     /* Hidden class */
     .hidden { display: none !important; }
@@ -1247,7 +1259,7 @@
     </div><!-- /modal-body -->
 
     <div class="zj-modal-footer">
-      <button class="zj-action-btn" id="resetConfigBtn" style="color:var(--error);border-color:#F5B8B3;">
+      <button class="zj-action-btn" id="resetConfigBtn" style="color:var(--error);border-color:var(--error-border);">
         <i class="ph ph-arrow-counter-clockwise"></i> Reset All
       </button>
       <div style="display:flex;gap:8px;">
