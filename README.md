@@ -18,6 +18,8 @@ ZhangJing replicates the most-loved features of proprietary translator applicati
 
 Open `index.html` in any modern browser (Chrome, Firefox, Safari, Edge). No build step, no server required.
 
+> The compiled provider bundle is committed in `dist/`. If you change anything in `providers/*.ts`, rebuild it first: `npm install && node build-providers.mjs`.
+
 ### First Run
 
 1. Click the **Config** button (bottom-right)
