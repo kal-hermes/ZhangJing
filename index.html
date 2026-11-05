@@ -903,12 +903,45 @@
     }
 
     @media (max-width: 640px) {
-      .zj-header { padding: 0 12px; gap: 10px; }
+      /* Header reflows to two rows: logo + LLM presets, then languages full-width */
+      .zj-header {
+        padding: 8px 12px;
+        gap: 10px;
+        height: auto;
+        min-height: 64px;
+        flex-wrap: wrap;
+      }
       .zj-logo span { display: none; }
-      .zj-lang-select { width: 90px; font-size: 0.8rem; }
-      .zj-swap-btn { width: 30px; height: 30px; }
+      .zj-header-right { margin-left: auto; }
+      .zj-llm-select {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        font-size: 0.78rem;
+        min-height: 44px;
+      }
+      .zj-header-center {
+        order: 3;
+        flex-basis: 100%;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .zj-lang-group { flex: 1; }
+      .zj-lang-select {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+        font-size: 0.85rem;
+        min-height: 44px;
+      }
+      .zj-swap-btn { width: 44px; height: 44px; flex-shrink: 0; }
       .zj-main { padding: 12px; }
-      .zj-llm-select { width: 100px; font-size: 0.78rem; }
+      .zj-action-btn { min-height: 44px; padding: 8px 14px; }
+      .zj-pol-inline { min-height: 40px; }
+      .zj-seg-alt { min-height: 44px; }
+      .zj-def-close, .zj-modal-close { min-width: 40px; min-height: 40px; }
+      /* The Ctrl+Enter hint is a desktop accelerator; hide it where it clips */
+      .zj-pane-footer .zj-footer-hint { display: none; }
     }
 
     /* Scrollbar styling */
