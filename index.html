@@ -1256,6 +1256,9 @@ const state = reactive({
   error: null,
   configOpen: false,
   configDirty: false,
+  // Draft copy edited by the config modal; state.cfg / state.presets only
+  // change when the user Saves, so Cancel and Escape have predictable semantics.
+  cfgDraft: null,
   // Live config editing (mirror of saved config, dirty until Save)
   cfg: JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
   presets: JSON.parse(JSON.stringify(DEFAULT_PRESETS)),
@@ -1307,13 +1310,86 @@ function saveConfig() {
   }
 }
 
-function resetConfig() {
-  Object.assign(state.cfg, JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
-  Object.assign(state.presets, JSON.parse(JSON.stringify(DEFAULT_PRESETS)));
-  localStorage.removeItem('zj_config');
-  localStorage.removeItem('zj_presets');
+// ─── Config modal draft state ────────────────────────────────────────────────
+// The modal edits a draft copy; state.cfg / state.presets only change on Save,
+// so Cancel and Escape have predictable semantics (prompt when dirty).
+
+function draftCfg() { return state.cfgDraft ? state.cfgDraft.cfg : state.cfg; }
+function draftPresets() { return state.cfgDraft ? state.cfgDraft.presets : state.presets; }
+
+function openConfigDraft() {
+  state.cfgDraft = JSON.parse(JSON.stringify({ cfg: state.cfg, presets: state.presets }));
   state.configDirty = false;
-  showToast('Config reset to defaults', 'info');
+}
+
+function closeConfigModal() {
+  state.configOpen = false;
+  $id('configOverlay').classList.remove('open');
+  state.cfgDraft = null;
+}
+
+function requestCloseConfig() {
+  if (state.configDirty && !confirm('Discard unsaved configuration changes?')) return;
+  closeConfigModal();
+}
+
+function commitConfigDraft() {
+  syncFormToDraft();
+  state.cfg = state.cfgDraft.cfg;
+  state.presets = state.cfgDraft.presets;
+  state.cfgDraft = null;
+  saveConfig();
+  updateLlmSelects();
+  closeConfigModal();
+}
+
+// ─── Session persistence (best-effort; never blocks the UI) ──────────────────
+
+let pendingSessionPresets = null;
+
+function saveSession() {
+  try {
+    localStorage.setItem('zj_session', JSON.stringify({
+      srcLang: state.srcLang,
+      tgtLang: state.tgtLang,
+      transPreset: ($id('transLlmSelect') || {}).value || '',
+      ttsPreset: ($id('ttsLlmSelect') || {}).value || '',
+      inputText: state.inputText,
+      outputText: state.outputText,
+    }));
+  } catch (e) { /* session persistence is best-effort */ }
+}
+
+function loadSession() {
+  try {
+    const raw = localStorage.getItem('zj_session');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (typeof s.srcLang === 'string' && s.srcLang) state.srcLang = s.srcLang;
+    if (typeof s.tgtLang === 'string' && s.tgtLang) state.tgtLang = s.tgtLang;
+    if (typeof s.inputText === 'string' && s.inputText) {
+      state.inputText = s.inputText;
+      $id('inputPane').value = s.inputText;
+      $id('inputCharCount').textContent = `${s.inputText.length} chars`;
+    }
+    if (typeof s.outputText === 'string' && s.outputText) {
+      state.outputText = s.outputText;
+      setOutputHtml(escapeHtml(s.outputText));
+    }
+    pendingSessionPresets = {
+      trans: typeof s.transPreset === 'string' ? s.transPreset : '',
+      tts: typeof s.ttsPreset === 'string' ? s.ttsPreset : '',
+    };
+  } catch (e) {
+    console.warn('Failed to restore session:', e);
+  }
+}
+
+function restoreSessionSelects() {
+  if (!pendingSessionPresets) return;
+  if (pendingSessionPresets.trans) $id('transLlmSelect').value = pendingSessionPresets.trans;
+  if (pendingSessionPresets.tts) $id('ttsLlmSelect').value = pendingSessionPresets.tts;
+  pendingSessionPresets = null;
 }
 
 // ─── LLM Provider bridge ─────────────────────────────────────────────────────
@@ -1514,6 +1590,13 @@ async function doTranslate() {
     return;
   }
 
+  // PRODUCT.md principle 4: re-translation warns before overwriting user edits.
+  if (state.isUserEdited && (state.outputText || '').trim()) {
+    if (!confirm('The translation has been edited. Re-translating will overwrite your edits. Continue?')) {
+      return;
+    }
+  }
+
   clearError();
   dismissSegPopup();
   state.isTranslating = true;
@@ -1536,6 +1619,7 @@ async function doTranslate() {
     state.outputText = result;
     state.isUserEdited = false;
     setOutputHtml(escapeHtml(result));
+    saveSession();
   } catch(e) {
     showError(e.message);
   } finally {
@@ -1602,6 +1686,7 @@ function applyAlternative(alt) {
   state.outputText = alt.text;
   state.isUserEdited = false;
   setOutputHtml(escapeHtml(alt.text));
+  saveSession();
   // Mark as applied
   document.querySelectorAll('.zj-alt-chip').forEach(c => c.classList.remove('applied'));
   const chips = document.querySelectorAll('.zj-alt-chip');
@@ -2019,7 +2104,7 @@ function loadPresetIntoConfig(presets, type, presetName) {
 
 function renderPresetList(type, containerId, presetInputId) {
   const container = $id(containerId);
-  const list = state.presets[type];
+  const list = draftPresets()[type];
 
   if (!list || list.length === 0) {
     container.innerHTML = '<div style="font-size:0.8rem;color:var(--text-secondary);padding:6px 0;">No presets saved yet.</div>';
@@ -2038,7 +2123,7 @@ function renderPresetList(type, containerId, presetInputId) {
     item.addEventListener('click', () => {
       const idx = parseInt(item.dataset.index);
       const type = item.dataset.type;
-      const preset = state.presets[type][idx];
+      const preset = draftPresets()[type][idx];
       if (type === 'translation') {
         $id('cfgTransPreset').value = preset.name;
         $id('cfgTransProvider').value = preset.provider || 'openai';
@@ -2061,55 +2146,57 @@ function renderPresetList(type, containerId, presetInputId) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.index);
-      state.presets[btn.dataset.type].splice(idx, 1);
+      draftPresets()[btn.dataset.type].splice(idx, 1);
       renderPresetList(type, containerId, presetInputId);
-      state.configDirty = true;
+      markConfigDirty();
     });
   });
 }
 
 function syncConfigToForm() {
+  const cfg = draftCfg();
   // Translation LLM
-  $id('cfgTransProvider').value = state.cfg.transLlm.provider || 'openai';
-  $id('cfgTransModel').value = state.cfg.transLlm.model || '';
-  $id('cfgTransBaseUrl').value = state.cfg.transLlm.baseUrl || '';
-  $id('cfgTransApiKey').value = state.cfg.transLlm.apiKey || '';
+  $id('cfgTransProvider').value = cfg.transLlm.provider || 'openai';
+  $id('cfgTransModel').value = cfg.transLlm.model || '';
+  $id('cfgTransBaseUrl').value = cfg.transLlm.baseUrl || '';
+  $id('cfgTransApiKey').value = cfg.transLlm.apiKey || '';
 
   // TTS LLM
-  $id('cfgTtsProvider').value = state.cfg.ttsLlm.provider || 'openai';
-  $id('cfgTtsModel').value = state.cfg.ttsLlm.model || '';
-  $id('cfgTtsBaseUrl').value = state.cfg.ttsLlm.baseUrl || '';
-  $id('cfgTtsApiKey').value = state.cfg.ttsLlm.apiKey || '';
+  $id('cfgTtsProvider').value = cfg.ttsLlm.provider || 'openai';
+  $id('cfgTtsModel').value = cfg.ttsLlm.model || '';
+  $id('cfgTtsBaseUrl').value = cfg.ttsLlm.baseUrl || '';
+  $id('cfgTtsApiKey').value = cfg.ttsLlm.apiKey || '';
 
   // Politeness
   document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.value === state.cfg.politeness);
+    btn.classList.toggle('active', btn.dataset.value === cfg.politeness);
   });
 
   // General
-  $id('cfgAutoTranslate').checked = state.cfg.autoTranslate;
-  $id('cfgSourceLangOverride').value = state.cfg.sourceLangOverride || '';
+  $id('cfgAutoTranslate').checked = cfg.autoTranslate;
+  $id('cfgSourceLangOverride').value = cfg.sourceLangOverride || '';
 
   // Presets
   renderPresetList('translation', 'transPresetList', 'cfgTransPreset');
   renderPresetList('tts', 'ttsPresetList', 'cfgTtsPreset');
 }
 
-function syncFormToConfig() {
-  state.cfg.transLlm = {
+function syncFormToDraft() {
+  const cfg = state.cfgDraft.cfg;
+  cfg.transLlm = {
     provider: $id('cfgTransProvider').value,
     model: $id('cfgTransModel').value,
     baseUrl: $id('cfgTransBaseUrl').value,
     apiKey: $id('cfgTransApiKey').value,
   };
-  state.cfg.ttsLlm = {
+  cfg.ttsLlm = {
     provider: $id('cfgTtsProvider').value,
     model: $id('cfgTtsModel').value,
     baseUrl: $id('cfgTtsBaseUrl').value,
     apiKey: $id('cfgTtsApiKey').value,
   };
-  state.cfg.autoTranslate = $id('cfgAutoTranslate').checked;
-  state.cfg.sourceLangOverride = $id('cfgSourceLangOverride').value.trim();
+  cfg.autoTranslate = $id('cfgAutoTranslate').checked;
+  cfg.sourceLangOverride = $id('cfgSourceLangOverride').value.trim();
 }
 
 function markConfigDirty() { state.configDirty = true; }
@@ -2122,6 +2209,7 @@ function handleInputChange() {
   const text = $id('inputPane').value;
   state.inputText = text;
   $id('inputCharCount').textContent = `${text.length} chars`;
+  saveSession();
 
   if (state.cfg.autoTranslate) {
     clearTimeout(autoTranslateTimer);
@@ -2516,6 +2604,7 @@ function bindEvents() {
     $id('inputPane').value = state.inputText;
     $id('inputCharCount').textContent = `${state.inputText.length} chars`;
     setOutputHtml(escapeHtml(state.outputText));
+    saveSession();
     // Animate swap button
     const btn = $id('swapBtn');
     btn.classList.add('swapped');
@@ -2537,6 +2626,7 @@ function bindEvents() {
     state.outputText = $id('outputPane').innerText;
     state.isUserEdited = true;
     $id('outputPane').classList.add('user-edited');
+    saveSession();
   });
 
   $id('outputPane').addEventListener('click', handleOutputClick);
@@ -2603,48 +2693,38 @@ function bindEvents() {
 
   // Config modal
   $id('configBtn').addEventListener('click', () => {
+    openConfigDraft();
     syncConfigToForm();
     state.configOpen = true;
     $id('configOverlay').classList.add('open');
   });
 
-  $id('configClose').addEventListener('click', () => {
-    $id('configOverlay').classList.remove('open');
-    state.configOpen = false;
-  });
+  $id('configClose').addEventListener('click', requestCloseConfig);
 
-  // Politeness buttons
+  // Politeness buttons (modal-only; edits the draft, applied on Save)
   document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (!state.cfgDraft) return;
       document.querySelectorAll('.zj-politeness-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.cfg.politeness = btn.dataset.value;
+      state.cfgDraft.cfg.politeness = btn.dataset.value;
       markConfigDirty();
     });
   });
 
-  // Save config
-  $id('saveConfigBtn').addEventListener('click', () => {
-    syncFormToConfig();
-    saveConfig();
-    updateLlmSelects();
-    $id('configOverlay').classList.remove('open');
-    state.configOpen = false;
-  });
+  // Save config: apply the draft
+  $id('saveConfigBtn').addEventListener('click', commitConfigDraft);
 
-  // Cancel config
-  $id('cancelConfigBtn').addEventListener('click', () => {
-    $id('configOverlay').classList.remove('open');
-    state.configOpen = false;
-  });
+  // Cancel config: prompt when the draft is dirty
+  $id('cancelConfigBtn').addEventListener('click', requestCloseConfig);
 
-  // Reset config
+  // Reset config: resets the DRAFT; nothing is written until Save
   $id('resetConfigBtn').addEventListener('click', () => {
-    if (confirm('Reset all configuration to defaults?')) {
-      resetConfig();
-      syncConfigToForm();
-      updateLlmSelects();
-    }
+    if (!confirm('Reset all settings in this dialog to defaults? (Applied when you Save)')) return;
+    state.cfgDraft.cfg = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    state.cfgDraft.presets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+    syncConfigToForm();
+    markConfigDirty();
   });
 
   // Config form dirty tracking
@@ -2660,56 +2740,56 @@ function bindEvents() {
   $id('cfgTransProvider').addEventListener('change', () => updateProviderHint('trans'));
   $id('cfgTtsProvider').addEventListener('change', () => updateProviderHint('tts'));
 
-  // Save Translation preset
+  // Save Translation preset (edits the draft; applied on Save)
   $id('saveTransPresetBtn').addEventListener('click', () => {
     const name = $id('cfgTransPreset').value.trim();
     if (!name) {
       showToast('Enter a preset name first', 'info');
       return;
     }
-    if (state.presets.translation.length >= 5) {
+    if (state.cfgDraft.presets.translation.length >= 5) {
       showToast('Maximum 5 translation presets', 'info');
       return;
     }
-    syncFormToConfig();
-    state.presets.translation.push({
+    syncFormToDraft();
+    state.cfgDraft.presets.translation.push({
       name,
-      provider: state.cfg.transLlm.provider,
-      model: state.cfg.transLlm.model,
-      baseUrl: state.cfg.transLlm.baseUrl,
-      apiKey: state.cfg.transLlm.apiKey,
+      provider: state.cfgDraft.cfg.transLlm.provider,
+      model: state.cfgDraft.cfg.transLlm.model,
+      baseUrl: state.cfgDraft.cfg.transLlm.baseUrl,
+      apiKey: state.cfgDraft.cfg.transLlm.apiKey,
     });
     renderPresetList('translation', 'transPresetList', 'cfgTransPreset');
-    updateLlmSelects();
+    markConfigDirty();
     $id('cfgTransPreset').value = '';
-    showToast(`Preset "${name}" saved`, 'success');
+    showToast(`Preset "${name}" saved — applied when you Save`, 'success');
   });
 
-  // Save TTS preset
+  // Save TTS preset (edits the draft; applied on Save)
   $id('saveTtsPresetBtn').addEventListener('click', () => {
     const name = $id('cfgTtsPreset').value.trim();
     if (!name) {
       showToast('Enter a preset name first', 'info');
       return;
     }
-    if (state.presets.tts.length >= 5) {
+    if (state.cfgDraft.presets.tts.length >= 5) {
       showToast('Maximum 5 TTS presets', 'info');
       return;
     }
-    syncFormToConfig();
-    state.presets.tts.push({
+    syncFormToDraft();
+    state.cfgDraft.presets.tts.push({
       name,
-      provider: state.cfg.ttsLlm.provider,
-      model: state.cfg.ttsLlm.model,
-      baseUrl: state.cfg.ttsLlm.baseUrl,
-      apiKey: state.cfg.ttsLlm.apiKey,
+      provider: state.cfgDraft.cfg.ttsLlm.provider,
+      model: state.cfgDraft.cfg.ttsLlm.model,
+      baseUrl: state.cfgDraft.cfg.ttsLlm.baseUrl,
+      apiKey: state.cfgDraft.cfg.ttsLlm.apiKey,
       voice: $id('cfgTtsVoice').value.trim() || 'alloy',
     });
     renderPresetList('tts', 'ttsPresetList', 'cfgTtsPreset');
-    updateLlmSelects();
+    markConfigDirty();
     $id('cfgTtsPreset').value = '';
     $id('cfgTtsVoice').value = '';
-    showToast(`Preset "${name}" saved`, 'success');
+    showToast(`Preset "${name}" saved — applied when you Save`, 'success');
   });
 
   // LLM quick selects
@@ -2717,6 +2797,7 @@ function bindEvents() {
     if (e.target.value) {
       loadPresetIntoConfig(state.presets, 'translation', e.target.value);
       showToast(`Switched to ${e.target.value}`, 'info');
+      saveSession();
     }
   });
 
@@ -2730,15 +2811,7 @@ function bindEvents() {
       state.cfg.ttsLlm.apiKey = '';
       state.cfg.ttsLlm.baseUrl = '';
     }
-  });
-
-  // Politeness label buttons
-  document.querySelectorAll('.zj-politeness-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.zj-politeness-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.cfg.politeness = btn.dataset.value;
-    });
+    saveSession();
   });
 
   // Keyboard: close popup first, then modal, on Escape
@@ -2749,8 +2822,7 @@ function bindEvents() {
         return;
       }
       if (state.configOpen) {
-        $id('configOverlay').classList.remove('open');
-        state.configOpen = false;
+        requestCloseConfig();
       }
     }
   });
@@ -2767,6 +2839,7 @@ function clearResults() {
   clearError();
   clearAudio();
   dismissSegPopup();
+  saveSession();
 }
 
 // ─── Vue Reactive Bindings ────────────────────────────────────────────────────
@@ -2802,9 +2875,11 @@ const vm = app.mount(document.body);
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 loadConfig();
+loadSession();
 populateLangDropdowns();
 populateProviderSelects();
 updateLlmSelects();
+restoreSessionSelects();
 bindEvents();
 
 // Auto-open config if no API key set
