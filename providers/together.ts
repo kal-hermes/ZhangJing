@@ -17,6 +17,8 @@ export class TogetherProvider extends OpenAICompatibleProvider {
   readonly label = 'Together AI';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.together.ai/docs';
+  readonly apiStyle = 'OpenAI-compatible (endpoint hardcoded in adapter)';
+  readonly defaultBaseUrl = 'https://api.together.xyz/v1';
 
   stream(opts: LlmCallOptions): LlmStream {
     return this._togetherStream(opts);

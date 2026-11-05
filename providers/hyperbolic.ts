@@ -15,6 +15,8 @@ export class HyperbolicProvider implements LlmProvider {
   readonly label = 'Hyperbolic';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.hyperbolic.xyz/docs/api-reference/chat';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.hyperbolic.xyz/v1';
 
   stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, reasoning, signal });

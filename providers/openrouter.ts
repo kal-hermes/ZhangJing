@@ -19,12 +19,14 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
   /** OpenRouter supports reasoning when the underlying model does (DeepSeek R1, o1, etc.) */
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://openrouter.ai/docs/api-reference/chat';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://openrouter.ai/api/v1';
 
   stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, reasoning, signal });
   }
 
-  private async *_stream(opts: LlmCallOptions): LlmStream {
+  protected async *_stream(opts: LlmCallOptions): LlmStream {
     const { config, messages, reasoning, signal } = opts;
     const { baseUrl, apiKey, model } = config;
 

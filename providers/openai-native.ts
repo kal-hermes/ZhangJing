@@ -14,6 +14,8 @@ export class OpenAINativeProvider extends OpenAICompatibleProvider {
   readonly id = 'openai';
   readonly label = 'OpenAI (direct)';
   readonly docsUrl = 'https://platform.openai.com/docs/api-reference/chat';
+  readonly apiStyle = 'OpenAI chat completions';
+  readonly defaultBaseUrl = 'https://api.openai.com/v1';
 
   protected _buildReasoningParam(reasoning: LlmCallOptions['reasoning'], model: string): object | null {
     if (!reasoning || reasoning.mode === 'off') return null;

@@ -453,6 +453,30 @@
       margin-bottom: 6px;
     }
 
+    /* Provider hint (API style + docs link under provider selects) */
+    .zj-provider-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .zj-provider-hint code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text);
+      background: #F0EFED;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .zj-provider-hint a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .zj-provider-hint a:hover { text-decoration: underline; }
+
     /* Segment alternatives popup */
     .zj-seg-popup {
       position: fixed;
@@ -1033,6 +1057,7 @@
               <option value="together">Together AI</option>
               <option value="custom">Custom</option>
             </select>
+            <div class="zj-provider-hint" id="transProviderHint" hidden></div>
           </div>
           <div class="zj-form-group">
             <label class="zj-form-label" for="cfgTransModel">Model</label>
@@ -1077,6 +1102,7 @@
               <option value="ollama">Ollama (local)</option>
               <option value="custom">Custom</option>
             </select>
+            <div class="zj-provider-hint" id="ttsProviderHint" hidden></div>
           </div>
           <div class="zj-form-group">
             <label class="zj-form-label" for="cfgTtsModel">Model</label>
@@ -1294,6 +1320,9 @@ function resetConfig() {
 // Uses the bundled provider system (providers-shim.js → window.__zhangjing)
 
 const { callLlm: _callLlm, resolveProvider, listProviders: _listProviders } = window.__zhangjing || {};
+
+/** Provider metadata from listProviders(), keyed by id (for the config-modal hints). */
+let _providerMeta = {};
 
 /**
  * @param {{ baseUrl:string, apiKey:string, model:string, messages:Array, response_format?:object, provider?:string }} opts
@@ -1901,6 +1930,9 @@ function populateProviderSelects() {
   if (!_listProviders) return;
   const providers = _listProviders();
 
+  _providerMeta = {};
+  providers.forEach(p => { _providerMeta[p.id] = p; });
+
   const transSelect = $id('cfgTransProvider');
   const ttsSelect = $id('cfgTtsProvider');
   if (!transSelect || !ttsSelect) return;
@@ -1918,6 +1950,39 @@ function populateProviderSelects() {
   // Restore selections if still valid
   if (providers.find(p => p.id === transCurrent)) transSelect.value = transCurrent;
   if (providers.find(p => p.id === ttsCurrent)) ttsSelect.value = ttsCurrent;
+
+  updateProviderHint('trans');
+  updateProviderHint('tts');
+}
+
+/**
+ * Show which API style the selected adapter implements, its canonical base
+ * URL, and a docs link — so multi-style providers (e.g. Z.ai's OpenAI-
+ * compatible vs Anthropic-compatible endpoints) are not a guessing game.
+ * Also prefill the Base URL placeholder from the adapter's default.
+ */
+function updateProviderHint(section) {
+  const select = $id(section === 'trans' ? 'cfgTransProvider' : 'cfgTtsProvider');
+  const hint = $id(section === 'trans' ? 'transProviderHint' : 'ttsProviderHint');
+  const baseUrlInput = $id(section === 'trans' ? 'cfgTransBaseUrl' : 'cfgTtsBaseUrl');
+  if (!select || !hint) return;
+
+  const meta = _providerMeta[select.value];
+  if (!meta || !meta.apiStyle) { hint.hidden = true; return; }
+
+  const parts = [escapeHtml(meta.apiStyle)];
+  if (meta.defaultBaseUrl) {
+    parts.push(`Base URL: <code>${escapeHtml(meta.defaultBaseUrl)}</code>`);
+  }
+  if (meta.docsUrl) {
+    parts.push(`<a href="${escapeHtml(meta.docsUrl)}" target="_blank" rel="noopener">Docs ↗</a>`);
+  }
+  hint.innerHTML = parts.join(' &middot; ');
+  hint.hidden = false;
+
+  if (baseUrlInput) {
+    baseUrlInput.placeholder = meta.defaultBaseUrl || 'Provider base URL — see Docs';
+  }
 }
 
 function updateLlmSelects() {
@@ -2586,6 +2651,10 @@ function bindEvents() {
     if (el) el.addEventListener('change', markConfigDirty);
     if (el) el.addEventListener('input', markConfigDirty);
   });
+
+  // Provider hints follow the selected adapter
+  $id('cfgTransProvider').addEventListener('change', () => updateProviderHint('trans'));
+  $id('cfgTtsProvider').addEventListener('change', () => updateProviderHint('tts'));
 
   // Save Translation preset
   $id('saveTransPresetBtn').addEventListener('click', () => {

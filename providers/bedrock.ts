@@ -112,6 +112,8 @@ export class BedrockProvider implements LlmProvider {
   readonly label = 'AWS Bedrock';
   readonly supportsReasoning = true; // Claude models on Bedrock support thinking
   readonly docsUrl = 'https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html';
+  readonly apiStyle = 'AWS Bedrock invoke (needs gateway; SigV4 not implemented in-browser)';
+  readonly defaultBaseUrl = '';
 
   stream({ config, messages, reasoning, signal, timeout }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, reasoning, signal, timeout });

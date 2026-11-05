@@ -17,6 +17,8 @@ export class VertexProvider implements LlmProvider {
   readonly label = 'Google Vertex AI';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference';
+  readonly apiStyle = 'Google Vertex AI (Gemini-style; needs Bearer access token)';
+  readonly defaultBaseUrl = '';
 
   stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, reasoning, signal });
@@ -180,30 +182,22 @@ export class VertexProvider implements LlmProvider {
   }
 
   /**
-   * Build authorization headers.
-   * Prefer Bearer token from config.apiKey.
-   * If the token looks like a service account JSON or empty, fall back to gcloud ADC.
+   * Build authorization headers from the configured apiKey.
+   *
+   * Browser note: gcloud CLI / service-account JSON are Node.js concepts.
+   * For browser deployments, set apiKey to a plain Bearer access token
+   * (from `gcloud auth print-access-token`) or configure a BFF proxy that
+   * bridges the browser to Vertex AI with server-side credentials.
    */
   private async _getAuthHeader(apiKey: string): Promise<Record<string, string>> {
     if (apiKey && !apiKey.startsWith('{')) {
-      // Plain Bearer token
       return { Authorization: `Bearer ${apiKey}` };
     }
 
-    // Try to use gcloud ADC (Application Default Credentials)
-    try {
-      const { execSync } = await import('child_process');
-      const token = execSync('gcloud auth print-access-token', { timeout: 10000 })
-        .toString()
-        .trim();
-      return { Authorization: `Bearer ${token}` };
-    } catch {
-      // gcloud not available or not logged in
-    }
-
     throw new Error(
-      `${this.id}: no valid auth found. Set apiKey to a Bearer token, ` +
-      `or ensure 'gcloud auth application-default login' has been run.`
+      `${this.id}: Vertex AI in the browser requires a Bearer access token ` +
+      `in the apiKey field. Run 'gcloud auth print-access-token' to obtain one, ` +
+      `or set up an OAuth client / BFF proxy for production multi-user deployments.`
     );
   }
 }

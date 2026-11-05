@@ -16,6 +16,8 @@ export class MoonshotProvider extends OpenAICompatibleProvider {
   readonly label = 'Moonshot (Kimi)';
   readonly supportsReasoning = false;
   readonly docsUrl = 'https://platform.moonshot.cn/docs/api/chat';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.moonshot.cn/v1';
 
   /**
    * Moonshot has no native reasoning/thinking support.

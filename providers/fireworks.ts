@@ -20,6 +20,8 @@ export class FireworksProvider extends OpenAICompatibleProvider {
   readonly label = 'Fireworks AI';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.fireworks.ai/inference';
+  readonly apiStyle = 'OpenAI-compatible (endpoint hardcoded in adapter)';
+  readonly defaultBaseUrl = 'https://api.fireworks.ai/inference/v1';
 
   stream(opts: LlmCallOptions): LlmStream {
     return this._fireworksStream(opts);

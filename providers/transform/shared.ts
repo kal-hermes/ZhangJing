@@ -162,8 +162,13 @@ export function stripThinkingTags(content: string): string {
 }
 
 /**
- * Normalize a provider base URL — strip trailing slashes and /v1 suffix.
+ * Normalize a user-entered base URL — trim whitespace and trailing slashes only.
  */
 export function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/$/, '').replace(/\/v1$/, '');
+  // Trim whitespace and trailing slashes ONLY. Deliberately does NOT strip
+  // version segments like /v1: OpenAI, OpenRouter and Groq require them in
+  // the final path, and appending /chat/completions to the base as entered
+  // keeps every OpenAI-style family correct. Base URLs without a version
+  // segment (e.g. https://api.deepseek.com) keep working unchanged.
+  return url.trim().replace(/\/+$/, '');
 }

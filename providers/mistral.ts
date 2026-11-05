@@ -14,6 +14,8 @@ export class MistralProvider extends OpenAICompatibleProvider {
   readonly label = 'Mistral';
   readonly supportsReasoning = false;
   readonly docsUrl = 'https://docs.mistral.ai/api/api-reference/chat';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.mistral.ai/v1';
 
   /**
    * Mistral has no native reasoning/thinking support.

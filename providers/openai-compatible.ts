@@ -14,16 +14,18 @@ import { buildOpenAIRequest, parseSSEStream, textChunk, reasoningChunk, usageChu
 import { normalizeBaseUrl } from './transform/shared';
 
 export class OpenAICompatibleProvider implements LlmProvider {
-  readonly id = 'openai-compatible';
-  readonly label = 'OpenAI-Compatible';
-  readonly supportsReasoning = true;
-  readonly docsUrl = 'https://platform.openai.com/docs/api-reference/chat';
+  readonly id: string = 'openai-compatible';
+  readonly label: string = 'OpenAI-Compatible';
+  readonly supportsReasoning: boolean = true;
+  readonly docsUrl: string = 'https://platform.openai.com/docs/api-reference/chat';
+  readonly apiStyle: string = 'OpenAI chat completions';
+  readonly defaultBaseUrl: string = '';
 
   stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, reasoning, signal });
   }
 
-  private async *_stream(opts: LlmCallOptions): LlmStream {
+  protected async *_stream(opts: LlmCallOptions): LlmStream {
     const { config, messages, reasoning, signal } = opts;
     const { baseUrl, apiKey, model } = config;
 
@@ -104,7 +106,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
   }
 
   /** Determine the reasoning param based on model name */
-  private _buildReasoningParam(reasoning: LlmCallOptions['reasoning'], model: string): object | null {
+  protected _buildReasoningParam(reasoning: LlmCallOptions['reasoning'], model: string): object | null {
     if (!reasoning || reasoning.mode === 'off') return null;
 
     const isOSeries = /^o[1-9]/i.test(model);

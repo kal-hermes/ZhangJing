@@ -41,7 +41,7 @@ export async function callLlm(opts: CallLlmOptions): Promise<LlmResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   const effectiveSignal = signal
-    ? (() => { const s = new AbortSignal(); signal.addEventListener('abort', () => s.abort()); return s; })()
+    ? (() => { const s = new AbortController(); signal.addEventListener('abort', () => s.abort()); return s.signal; })()
     : controller.signal;
 
   try {
@@ -60,7 +60,7 @@ export async function callLlm(opts: CallLlmOptions): Promise<LlmResponse> {
 
 /* ========== Streaming call ========== */
 
-export async function* streamLlm(opts: CallLlmOptions): LlmStreamChunk {
+export async function* streamLlm(opts: CallLlmOptions): AsyncGenerator<LlmStreamChunk, void, unknown> {
   const provider = resolveProvider(opts.config);
   yield* provider.stream(opts);
 }

@@ -19,6 +19,8 @@ export class VercelAIGatewayProvider extends OpenAICompatibleProvider {
   readonly label = 'Vercel AI Gateway';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://vercel.com/docs/ai';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://ai-gateway.vercel.sh/v1';
 
   // Vercel AI Gateway passes through reasoning params to the upstream provider.
   // We inherit the base class _buildReasoningParam which handles DeepSeek R1,

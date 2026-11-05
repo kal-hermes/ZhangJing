@@ -13,6 +13,8 @@ export class SambaNovaProvider extends OpenAICompatibleProvider {
   readonly label = 'SambaNova';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.sambanova.ai';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.sambanova.ai/v1';
 
   protected _buildReasoningParam(reasoning: LlmCallOptions['reasoning'], model: string): object | null {
     if (!reasoning || reasoning.mode === 'off') return null;

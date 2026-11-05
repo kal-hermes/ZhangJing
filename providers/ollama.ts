@@ -22,6 +22,8 @@ export class OllamaProvider implements LlmProvider {
   readonly label = 'Ollama (local)';
   readonly supportsReasoning = false;
   readonly docsUrl = 'https://github.com/ollama/ollama';
+  readonly apiStyle = 'Ollama native (SDK)';
+  readonly defaultBaseUrl = 'http://localhost:11434';
 
   stream({ config, messages, signal, timeout }: LlmCallOptions): LlmStream {
     return this._stream({ config, messages, signal, timeout });
@@ -42,7 +44,7 @@ export class OllamaProvider implements LlmProvider {
 
     const client = new Ollama({ host, fetch: window.fetch.bind(window) });
 
-    const numCtx = (config as Record<string, unknown>).numCtx as number | undefined ?? DEFAULT_NUM_CTX;
+    const numCtx = (config as { numCtx?: number }).numCtx ?? DEFAULT_NUM_CTX;
 
     const chatPromise = client.chat({
       model,

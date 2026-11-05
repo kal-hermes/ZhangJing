@@ -84,11 +84,14 @@ export function getProvider(id: string): LlmProvider | undefined {
   return _providers.get(id);
 }
 
-export function listProviders(): Array<{ id: string; label: string; supportsReasoning: boolean }> {
+export function listProviders(): Array<{ id: string; label: string; supportsReasoning: boolean; docsUrl: string; apiStyle: string; defaultBaseUrl: string }> {
   return Array.from(_providers.values()).map(p => ({
     id: p.id,
     label: p.label,
     supportsReasoning: p.supportsReasoning,
+    docsUrl: p.docsUrl,
+    apiStyle: p.apiStyle,
+    defaultBaseUrl: p.defaultBaseUrl,
   }));
 }
 

@@ -29,6 +29,8 @@ export class ZaiProvider implements LlmProvider {
   readonly label = 'Z.ai (GLM)';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.z.ai/api-reference/introduction';
+  readonly apiStyle = 'OpenAI-compatible (thinking param)';
+  readonly defaultBaseUrl = 'https://api.z.ai/api/paas/v4';
 
   /**
    * Hybrid GLM models default thinking ON server-side; make every app

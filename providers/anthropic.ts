@@ -16,6 +16,8 @@ export class AnthropicProvider implements LlmProvider {
   readonly label = 'Anthropic (Direct)';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.anthropic.com/claude/reference';
+  readonly apiStyle = 'Anthropic Messages API (direct SDK)';
+  readonly defaultBaseUrl = '';
 
   // Lazy-loaded SDK instance
   private _sdk: unknown = null;
@@ -93,7 +95,7 @@ export class AnthropicProvider implements LlmProvider {
           }
           case 'message_delta': {
             const delta = event.delta as Record<string, unknown>;
-            if (delta.usage) lastUsage = { ...lastUsage, ...(delta.usage as Record<string, unknown>) };
+            if (delta.usage) lastUsage = { ...(lastUsage ?? {}), ...(delta.usage as Record<string, unknown>) };
             break;
           }
           case 'message_stop': {

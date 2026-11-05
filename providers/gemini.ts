@@ -18,6 +18,8 @@ export class GeminiProvider implements LlmProvider {
   readonly label = 'Google AI (AI Studio)';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://ai.google.dev/api/generate-content';
+  readonly apiStyle = 'Google Gemini generateContent (SSE)';
+  readonly defaultBaseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
   async *stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     const { baseUrl, apiKey, model } = config;

@@ -108,6 +108,18 @@ export interface LlmProvider {
   readonly label: string;
   readonly supportsReasoning: boolean;
   readonly docsUrl: string;
+  /**
+   * Human-readable name of the API style this adapter implements (e.g.
+   * "OpenAI chat completions"), shown in the config UI so users can match
+   * the adapter to their provider's endpoint documentation.
+   */
+  readonly apiStyle: string;
+  /**
+   * Base URL users should start from (shown as the Base URL placeholder in
+   * the config UI). Empty = the adapter has no canonical host and constructs
+   * its own endpoint.
+   */
+  readonly defaultBaseUrl: string;
 
   /**
    * Make a streaming request to the LLM.
@@ -131,9 +143,9 @@ export interface ProviderRegistry {
   /** Get a provider by id */
   get(id: string): LlmProvider | undefined;
   /** List all registered providers */
-  list(): Array<{ id: string; label: string; supportsReasoning: boolean }>;
+  list(): Array<{ id: string; label: string; supportsReasoning: boolean; docsUrl: string; apiStyle: string; defaultBaseUrl: string }>;
   /** Resolve the right provider from a config object */
   resolve(config: ProviderConfig): LlmProvider;
 }
 
-export { getProvider, listProviders, resolveProvider, register } from './registry';
+export { getProvider, listProviders, resolveProvider } from './registry';

@@ -23,6 +23,8 @@ export class MiniMaxProvider implements LlmProvider {
   readonly label = 'MiniMax';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://platform.minimax.io/docs/api-reference/text-openai-api';
+  readonly apiStyle = 'OpenAI-compatible (extra_body reasoning_split)';
+  readonly defaultBaseUrl = 'https://api.minimax.io/v1';
 
   async *stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     const { baseUrl, apiKey, model } = config;

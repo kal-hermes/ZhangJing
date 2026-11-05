@@ -14,6 +14,8 @@ export class LMStudioProvider extends OpenAICompatibleProvider {
   readonly label = 'LM Studio (local)';
   readonly supportsReasoning = false;
   readonly docsUrl = 'https://lmstudio.ai/docs';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'http://localhost:1234/v1';
 
   /**
    * LM Studio does not support reasoning/thinking parameters,

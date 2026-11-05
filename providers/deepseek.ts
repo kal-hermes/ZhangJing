@@ -19,6 +19,8 @@ export class DeepSeekProvider implements LlmProvider {
   readonly label = 'DeepSeek';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://api-docs.deepseek.com/api-reference/chat';
+  readonly apiStyle = 'OpenAI-compatible (thinking param)';
+  readonly defaultBaseUrl = 'https://api.deepseek.com/v1';
 
   async *stream({ config, messages, reasoning, signal }: LlmCallOptions): LlmStream {
     const { baseUrl, apiKey, model } = config;

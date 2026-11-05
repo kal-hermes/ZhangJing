@@ -15,6 +15,8 @@ export class XAIProvider extends OpenAICompatibleProvider {
   readonly label = 'xAI (Grok)';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://docs.x.ai';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.x.ai/v1';
 
   protected _buildReasoningParam(reasoning: LlmCallOptions['reasoning'], model: string): object | null {
     if (!reasoning || reasoning.mode === 'off') return null;

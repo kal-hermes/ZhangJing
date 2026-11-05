@@ -13,6 +13,8 @@ export class GroqProvider extends OpenAICompatibleProvider {
   readonly label = 'Groq';
   readonly supportsReasoning = true;
   readonly docsUrl = 'https://console.groq.com/docs/api';
+  readonly apiStyle = 'OpenAI-compatible';
+  readonly defaultBaseUrl = 'https://api.groq.com/openai/v1';
 
   protected override _buildReasoningParam(
     reasoning: LlmCallOptions['reasoning'],
