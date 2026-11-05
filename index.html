@@ -453,6 +453,97 @@
       margin-bottom: 6px;
     }
 
+    /* Segment alternatives popup */
+    .zj-seg-popup {
+      position: fixed;
+      z-index: 1050;
+      width: 340px;
+      max-width: calc(100vw - 24px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+      padding: 12px 14px;
+      animation: segPop 150ms ease-out;
+    }
+
+    @keyframes segPop { from { opacity: 0; transform: translateY(-4px); } }
+
+    .zj-seg-header { margin-bottom: 8px; }
+
+    .zj-seg-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .zj-seg-text {
+      display: block;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--primary);
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .zj-seg-note {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+
+    .zj-seg-note.error { color: var(--error); }
+
+    .zj-seg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .zj-seg-alt {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 7px 12px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: 'Source Sans 3', sans-serif;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: all 200ms;
+      word-break: break-word;
+    }
+
+    .zj-seg-alt:hover { border-color: var(--primary); background: #EEF3FA; color: var(--primary); }
+    .zj-seg-alt:active { transform: scale(0.98); }
+
+    .zj-seg-skeleton {
+      height: 30px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, #F0EFED 25%, #E8E7E4 50%, #F0EFED 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+
+    .zj-seg-esc {
+      margin-top: 8px;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    .zj-action-btn:focus-visible,
+    .zj-seg-alt:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+
     /* Footer */
     .zj-footer {
       background: var(--surface);
@@ -882,6 +973,15 @@
 
 </main>
 
+<!-- Segment alternatives popup -->
+<div class="zj-seg-popup" id="segPopup" role="dialog" aria-label="Segment alternatives" hidden>
+  <div class="zj-seg-header">
+    <span class="zj-seg-label" id="segLabel"></span>
+    <span class="zj-seg-text" id="segText"></span>
+  </div>
+  <div id="segBody"></div>
+</div>
+
 <!-- Footer -->
 <footer class="zj-footer">
   <span class="zj-footer-hint">
@@ -1236,17 +1336,16 @@ function buildTranslateSystemPrompt(srcLang, tgtLang, politeness, srcLangOverrid
     politenessNote = '\nPoliteness: ' + notes[politeness] || '';
   }
 
-  return `You are a professional translator. Translate the text faithfully and accurately.' +
-    ' Only output the translation — no explanations, no comments, no quotes.' +
-    ' Preserve line breaks and formatting as much as possible.${politenessNote}`;
-}
-
-function buildTranslateUserPrompt(text, srcLang, tgtLang, srcLangOverride) {
   const src = srcLangOverride || srcLang;
   const srcName = LANGUAGES.find(l => l.code === src)?.name || src;
   const tgtName = LANGUAGES.find(l => l.code === tgtLang)?.name || tgtLang;
-  return `Translate the following ${srcName} text to ${tgtName}.\n\n${text}`;
+
+  return `You are a professional translator. Translate the text faithfully and accurately.
+Only output the translation — no explanations, no comments, no quotes.' +
+Preserve line breaks and formatting as much as possible.${politenessNote}
+Translate the text supplied by the user from ${srcName} to ${tgtName}.`;
 }
+
 
 function buildAlternativesSystemPrompt(srcLang, tgtLang, politeness, srcLangOverride) {
   const isJapanese = tgtLang === 'ja' || (srcLangOverride === 'ja');
@@ -1279,6 +1378,52 @@ function buildAlternativesUserPrompt(text, srcLang, tgtLang, srcLangOverride) {
   const srcName = LANGUAGES.find(l => l.code === src)?.name || src;
   const tgtName = LANGUAGES.find(l => l.code === tgtLang)?.name || tgtLang;
   return `Provide 4 distinct alternative translations of this ${srcName} text to ${tgtName}:\n\n${text}`;
+}
+
+function buildSegmentAlternativesSystemPrompt(srcLang, tgtLang, politeness, srcLangOverride) {
+  const isJapanese = tgtLang === 'ja' || (srcLangOverride === 'ja');
+  const isKorean = tgtLang === 'ko' || (srcLangOverride === 'ko');
+
+  let politenessNote = '';
+  if (politeness !== 'auto' && (isJapanese || isKorean)) {
+    const notes = {
+      casual:  'Use casual / plain form.',
+      polite:  'Use polite form.',
+      formal:  'Use formal / respectful form.',
+      humble:  'Use humble form.',
+    };
+    politenessNote = '\nPoliteness: ' + notes[politeness] || '';
+  }
+
+  return `You are a professional translation editor. You will be given a translated sentence and either a highlighted span or a caret position inside it.
+
+- If a span is highlighted: treat every complete word/idiom/phrase unit the span crosses as the target region.
+- If only a caret position is given: identify the smallest meaningful unit (word, idiom, compound, or fixed phrase) that contains the caret position. Never choose a smaller fragment that would not make sense on its own.
+
+Respond with JSON only, in exactly this shape:
+{"segment": "<exact substring of the sentence to replace>", "alternatives": ["...", "...", "...", "..."]}
+
+Rules:
+- "segment" MUST be an exact substring of the given sentence, copied verbatim with no added quotes.
+- Provide exactly 4 alternatives, each a natural replacement for the segment within the same sentence.
+- Preserve the sentence's politeness register and tone.
+- Properly escape quotes inside JSON strings.
+- Output no markdown fences and no commentary.${politenessNote}`;
+}
+
+function buildSegmentAlternativesUserPrompt(sentence, popup) {
+  const src = state.cfg.sourceLangOverride || state.srcLang;
+  const srcName = LANGUAGES.find(l => l.code === src)?.name || src;
+  const tgtName = LANGUAGES.find(l => l.code === state.tgtLang)?.name || state.tgtLang;
+
+  let position;
+  if (popup.trigger === 'selection') {
+    position = `Highlighted span: "${popup.selText}" — provide alternatives for the entire unit(s) the span crosses.`;
+  } else {
+    position = `Caret position: between character index ${popup.caretOffset} and ${popup.caretOffset + 1} (0-based) — provide alternatives for the unit containing the caret.`;
+  }
+
+  return `${position}\n\nSentence (${srcName} to ${tgtName} translation):\n${sentence}`;
 }
 
 function buildDefinitionsSystemPrompt() {
@@ -1341,13 +1486,14 @@ async function doTranslate() {
   }
 
   clearError();
+  dismissSegPopup();
   state.isTranslating = true;
   state.alternatives = [];
 
   try {
     const messages = [
       { role: 'system', content: buildTranslateSystemPrompt(state.srcLang, state.tgtLang, state.cfg.politeness, state.cfg.sourceLangOverride) },
-      { role: 'user', content: buildTranslateUserPrompt(text, state.srcLang, state.tgtLang, state.cfg.sourceLangOverride) },
+      { role: 'user', content: text },
     ];
 
     const result = await callLlm({
@@ -1914,25 +2060,349 @@ function handleInputChange() {
   }
 }
 
-// ─── Output text selection / definitions ───────────────────────────────────
+// ─── Segment alternatives popup ─────────────────────────────────────────────
 
-let lookupDebounce = null;
+const segPopup = {
+  open: false,
+  loading: false,
+  error: null,
+  alternatives: [],   // [string]
+  segment: '',        // resolved substring to replace
+  trigger: null,      // 'click' | 'selection'
+  selText: '',
+  caretOffset: -1,    // plain-text offset anchor (caret, or selection start)
+};
 
-function handleOutputMouseUp() {
-  clearTimeout(lookupDebounce);
-  lookupDebounce = setTimeout(() => {
-    const sel = window.getSelection();
-    const text = sel.toString().trim();
-    if (text && text.length > 0 && text.length < 200) {
-      doLookupDefinition(text);
+function transLlmConfigured() {
+  return !!(state.cfg.transLlm.apiKey || (state.cfg.transLlm.baseUrl || '').includes('localhost'));
+}
+
+function getOutputPlainText() {
+  return $id('outputPane').innerText;
+}
+
+// Map a plain-text offset inside outputPane to a {node, offset} DOM position.
+function resolveTextPosition(targetOffset) {
+  const walker = document.createTreeWalker($id('outputPane'), NodeFilter.SHOW_TEXT);
+  let remaining = targetOffset;
+  let node;
+  while ((node = walker.nextNode())) {
+    const len = node.textContent.length;
+    if (remaining <= len) return { node, offset: remaining };
+    remaining -= len;
+  }
+  return null;
+}
+
+// Convert a DOM position (node, offset) to a plain-text offset inside outputPane.
+function textOffsetOf(node, offset) {
+  const walker = document.createTreeWalker($id('outputPane'), NodeFilter.SHOW_TEXT);
+  let total = 0;
+  let cur;
+  while ((cur = walker.nextNode())) {
+    if (cur === node) return total + offset;
+    total += cur.textContent.length;
+  }
+  return -1;
+}
+
+// Caret offset (in plain text) from a click event, via caretRangeFromPoint / caretPositionFromPoint.
+function caretTextOffsetFromEvent(e) {
+  let node = null, offset = 0;
+  if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (r) { node = r.startContainer; offset = r.startOffset; }
+  } else if (document.caretPositionFromPoint) {
+    const p = document.caretPositionFromPoint(e.clientX, e.clientY);
+    if (p) { node = p.offsetNode; offset = p.offset; }
+  }
+  if (!node || node.nodeType !== Node.TEXT_NODE) {
+    // Point landed on the pane element itself (empty output) — no caret to resolve.
+    return node && node.nodeType === Node.ELEMENT_NODE ? 0 : -1;
+  }
+  const off = textOffsetOf(node, offset);
+  return off >= 0 ? off : -1;
+}
+
+// Small plain-text excerpt around a caret offset, for pre-fetch orientation.
+function caretContext(plain, offset) {
+  if (offset < 0 || offset > plain.length) return '';
+  const before = plain.slice(Math.max(0, offset - 8), offset);
+  const after = plain.slice(offset, offset + 8);
+  return `${before > '' && before.length >= 8 ? '…' : ''}${before}▸${after}${after.length >= 8 ? '…' : ''}`;
+}
+
+function openSegPopup({ trigger, selText = '', caretOffset = -1, x, y }) {
+  Object.assign(segPopup, {
+    open: true, loading: false, error: null,
+    alternatives: [], segment: '', trigger, selText, caretOffset,
+  });
+  renderSegPopup();
+  positionSegPopup(x, y);
+}
+
+function dismissSegPopup() {
+  if (!segPopup.open) return;
+  segPopup.open = false;
+  $id('segPopup').hidden = true;
+}
+
+function positionSegPopup(x, y) {
+  const el = $id('segPopup');
+  el.hidden = false;
+  const r = el.getBoundingClientRect();
+  const margin = 12;
+  let left = x - r.width / 2;
+  let top = y + 10;
+  if (top + r.height + margin > window.innerHeight) top = y - r.height - 10;
+  if (top < margin) top = margin;
+  left = Math.min(Math.max(left, margin), window.innerWidth - r.width - margin);
+  el.style.left = `${Math.round(left)}px`;
+  el.style.top = `${Math.round(top)}px`;
+}
+
+function renderSegPopup() {
+  const el = $id('segPopup');
+  if (!segPopup.open) { el.hidden = true; return; }
+
+  // Header: resolved segment once known, otherwise the trigger context.
+  const plain = getOutputPlainText();
+  if (segPopup.segment) {
+    $id('segLabel').textContent = 'Segment';
+    $id('segText').textContent = segPopup.segment;
+  } else if (segPopup.trigger === 'selection') {
+    $id('segLabel').textContent = 'Selected';
+    $id('segText').textContent = segPopup.selText;
+  } else {
+    $id('segLabel').textContent = 'Caret';
+    $id('segText').textContent = caretContext(plain, segPopup.caretOffset);
+  }
+
+  const body = $id('segBody');
+
+  if (segPopup.loading) {
+    body.innerHTML = `
+      <div class="zj-seg-skeleton" style="width:85%;"></div>
+      <div class="zj-seg-skeleton" style="width:70%;"></div>
+      <div class="zj-seg-skeleton" style="width:78%;"></div>`;
+    return;
+  }
+
+  if (segPopup.error) {
+    body.innerHTML = `
+      <div class="zj-seg-note error">${escapeHtml(segPopup.error)}</div>
+      <div class="zj-seg-actions">
+        <button class="zj-action-btn" id="segRetryBtn"><i class="ph ph-arrow-clockwise"></i> Retry</button>
+      </div>`;
+    $id('segRetryBtn').addEventListener('click', doSegmentAlternatives);
+    return;
+  }
+
+  if (segPopup.alternatives.length > 0) {
+    body.innerHTML = segPopup.alternatives.map((a, i) =>
+      `<button class="zj-seg-alt" data-i="${i}">${escapeHtml(a)}</button>`
+    ).join('');
+    body.querySelectorAll('.zj-seg-alt').forEach(btn => {
+      btn.addEventListener('click', () => applySegmentAlternative(segPopup.alternatives[parseInt(btn.dataset.i)]));
+    });
+    return;
+  }
+
+  // Pre-fetch state: explicit gate, zero API cost until confirmed.
+  const configured = transLlmConfigured();
+  const hint = !configured
+    ? 'Configure your Translation LLM in Config to use this.'
+    : (segPopup.trigger === 'selection'
+      ? 'The LLM resolves the full unit(s) your selection crosses.'
+      : 'The LLM finds the word or idiom unit around your caret.');
+  const actions = [];
+  if (configured) {
+    actions.push(`<button class="zj-action-btn primary" id="segFetchBtn"><i class="ph ph-sparkle"></i> Get alternatives</button>`);
+    if (segPopup.trigger === 'selection') {
+      actions.push(`<button class="zj-action-btn" id="segLookupBtn"><i class="ph ph-book-open-text"></i> Look up</button>`);
     }
-  }, 400);
+  }
+  body.innerHTML = `
+    <div class="zj-seg-note">${hint}</div>
+    <div class="zj-seg-actions">${actions.join('')}</div>
+    <div class="zj-seg-esc"><kbd>Esc</kbd> to close</div>`;
+
+  if (configured) {
+    $id('segFetchBtn').addEventListener('click', doSegmentAlternatives);
+    const lb = $id('segLookupBtn');
+    if (lb) lb.addEventListener('click', () => {
+      const term = segPopup.segment || segPopup.selText;
+      dismissSegPopup();
+      doLookupDefinition(term);
+    });
+  }
+}
+
+async function doSegmentAlternatives() {
+  if (!transLlmConfigured()) {
+    segPopup.error = 'Configure your Translation LLM in Config first.';
+    renderSegPopup();
+    return;
+  }
+  const sentence = getOutputPlainText();
+  if (!sentence.trim()) return;
+
+  segPopup.loading = true;
+  segPopup.error = null;
+  renderSegPopup();
+
+  try {
+    const messages = [
+      { role: 'system', content: buildSegmentAlternativesSystemPrompt(state.srcLang, state.tgtLang, state.cfg.politeness, state.cfg.sourceLangOverride) },
+      { role: 'user', content: buildSegmentAlternativesUserPrompt(sentence, segPopup) },
+    ];
+    const result = await callLlm({
+      baseUrl: state.cfg.transLlm.baseUrl,
+      apiKey: state.cfg.transLlm.apiKey,
+      model: state.cfg.transLlm.model,
+      provider: state.cfg.transLlm.provider,
+      messages,
+    });
+
+    const parsed = parseSegmentAlternatives(result);
+    if (!parsed || !parsed.segment || !parsed.alternatives.length) {
+      throw new Error('The model did not return a usable segment. Try selecting the text explicitly instead.');
+    }
+    if (!sentence.includes(parsed.segment)) {
+      throw new Error(`The model returned "${parsed.segment}" which is not in the current text. Try selecting the text explicitly.`);
+    }
+
+    segPopup.segment = parsed.segment;
+    segPopup.alternatives = parsed.alternatives.slice(0, 6);
+    segPopup.loading = false;
+    renderSegPopup();
+  } catch (e) {
+    if (!segPopup.open) return; // dismissed while loading
+    segPopup.loading = false;
+    segPopup.error = e.message;
+    renderSegPopup();
+  }
+}
+
+// Lenient JSON parse: strips fences, falls back to regex extraction.
+function parseSegmentAlternatives(raw) {
+  if (!raw) return null;
+  let text = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+  let parsed = null;
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { parsed = JSON.parse(text.slice(start, end + 1)); } catch (e) { parsed = null; }
+  }
+  if (!parsed) {
+    const segMatch = text.match(/"segment"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const altMatch = text.match(/"alternatives"\s*:\s*\[([^\]]*)\]/s);
+    if (segMatch && altMatch) {
+      try {
+        parsed = {
+          segment: JSON.parse(`"${segMatch[1]}"`),
+          alternatives: JSON.parse(`[${altMatch[1]}]`),
+        };
+      } catch (e) { parsed = null; }
+    }
+  }
+  if (!parsed || typeof parsed.segment !== 'string' || !Array.isArray(parsed.alternatives)) return null;
+  const alts = parsed.alternatives
+    .filter(a => typeof a === 'string' && a.trim() && a !== parsed.segment)
+    .map(a => a.trim());
+  return { segment: parsed.segment, alternatives: alts };
+}
+
+// Swap the resolved segment in place, preserving the rest and native undo history.
+function applySegmentAlternative(newText) {
+  const plain = getOutputPlainText();
+  const seg = segPopup.segment;
+  if (!seg || !plain.includes(seg)) {
+    segPopup.alternatives = [];
+    segPopup.error = 'Segment no longer matches the text. Re-open the popup and try again.';
+    renderSegPopup();
+    return;
+  }
+
+  const occurrences = [];
+  let idx = plain.indexOf(seg);
+  while (idx !== -1) { occurrences.push(idx); idx = plain.indexOf(seg, idx + 1); }
+  const near = segPopup.caretOffset >= 0 ? segPopup.caretOffset : 0;
+  const at = occurrences.reduce((a, b) => Math.abs(b - near) < Math.abs(a - near) ? b : a, occurrences[0]);
+
+  const start = resolveTextPosition(at);
+  const end = resolveTextPosition(at + seg.length);
+  if (!start || !end) {
+    segPopup.alternatives = [];
+    segPopup.error = 'Could not locate the segment in the document.';
+    renderSegPopup();
+    return;
+  }
+
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  // execCommand('insertText') keeps native Ctrl+Z undo alive; DOM surgery does not.
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, newText); } catch (e) { ok = false; }
+  if (!ok) {
+    range.deleteContents();
+    range.insertNode(document.createTextNode(newText));
+    state.outputText = getOutputPlainText();
+    state.isUserEdited = true;
+    $id('outputPane').classList.add('user-edited');
+  }
+
+  dismissSegPopup();
+}
+
+function handleOutputClick(e) {
+  const sel = window.getSelection();
+  const selText = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+
+  if (selText && selText.length < 200 && sel.rangeCount) {
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const anchor = textOffsetOf(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+    openSegPopup({
+      trigger: 'selection',
+      selText,
+      caretOffset: anchor >= 0 ? anchor : 0,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom,
+    });
+    return;
+  }
+
+  // Bare click: caret mode. No fetch happens until the user confirms in the popup.
+  const plain = getOutputPlainText();
+  if (!plain.trim()) { dismissSegPopup(); return; }
+  const caret = caretTextOffsetFromEvent(e);
+  if (caret < 0) { dismissSegPopup(); return; }
+  openSegPopup({ trigger: 'click', caretOffset: caret, x: e.clientX, y: e.clientY });
 }
 
 function handleOutputKeyUp(e) {
-  // Handle text selection via keyboard
+  // Keyboard selection (Shift+Arrow, Ctrl+A) routes through the same popup.
   if (e.shiftKey || e.ctrlKey || e.metaKey) {
-    handleOutputMouseUp();
+    const sel = window.getSelection();
+    const text = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+    if (text && text.length < 200) {
+      const range0 = sel.rangeCount ? sel.getRangeAt(0) : null;
+      const anchor = range0 ? textOffsetOf(range0.startContainer, range0.startOffset) : -1;
+      const rect = range0 ? range0.getBoundingClientRect() : null;
+      const paneRect = $id('outputPane').getBoundingClientRect();
+      openSegPopup({
+        trigger: 'selection',
+        selText: text,
+        caretOffset: anchor >= 0 ? anchor : 0,
+        x: rect && rect.width ? rect.left + rect.width / 2 : paneRect.right - 180,
+        y: rect && rect.height ? rect.bottom : paneRect.top + 40,
+      });
+    }
   }
 }
 
@@ -2000,8 +2470,23 @@ function bindEvents() {
     $id('outputPane').classList.add('user-edited');
   });
 
-  $id('outputPane').addEventListener('mouseup', handleOutputMouseUp);
+  $id('outputPane').addEventListener('click', handleOutputClick);
   $id('outputPane').addEventListener('keyup', handleOutputKeyUp);
+
+  // Segment popup: keep the pane's focus/selection when clicking inside the popup,
+  // dismiss on outside click and on scroll.
+  $id('segPopup').addEventListener('mousedown', e => e.preventDefault());
+  document.addEventListener('mousedown', e => {
+    if (segPopup.open && !e.target.closest('#segPopup') && !e.target.closest('#outputPane')) {
+      dismissSegPopup();
+    }
+  });
+  window.addEventListener('scroll', e => {
+    if (!segPopup.open) return;
+    const t = e.target;
+    if (t instanceof Element && t.closest('#segPopup')) return;
+    dismissSegPopup();
+  }, true);
 
   // Output pane - clear user-edited indicator on new translation
   watch(() => state.outputText, () => {
@@ -2183,11 +2668,17 @@ function bindEvents() {
     });
   });
 
-  // Keyboard: close modal on Escape
+  // Keyboard: close popup first, then modal, on Escape
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && state.configOpen) {
-      $id('configOverlay').classList.remove('open');
-      state.configOpen = false;
+    if (e.key === 'Escape') {
+      if (segPopup.open) {
+        dismissSegPopup();
+        return;
+      }
+      if (state.configOpen) {
+        $id('configOverlay').classList.remove('open');
+        state.configOpen = false;
+      }
     }
   });
 }
@@ -2202,6 +2693,7 @@ function clearResults() {
   closeDefPane();
   clearError();
   clearAudio();
+  dismissSegPopup();
 }
 
 // ─── Vue Reactive Bindings ────────────────────────────────────────────────────
