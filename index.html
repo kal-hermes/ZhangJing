@@ -1065,7 +1065,7 @@
             <i class="ph ph-download-simple"></i> Download
           </button>
           <button class="zj-action-btn" id="suggestBtn" title="Get alternative translations">
-            <i class="ph ph-git-diff"></i> Suggest
+            <i class="ph ph-sparkle"></i> Suggest
           </button>
         </div>
       </div>
@@ -1420,6 +1420,16 @@ function openConfigDraft() {
   state.configDirty = false;
 }
 
+function openConfigModal() {
+  openConfigDraft();
+  syncConfigToForm();
+  state.configOpen = true;
+  $id('configOverlay').classList.add('open');
+  // Focus management: remember where we came from, start on the first field
+  configReturnFocus = document.activeElement;
+  $id('cfgTransPreset').focus();
+}
+
 function closeConfigModal() {
   state.configOpen = false;
   $id('configOverlay').classList.remove('open');
@@ -1756,7 +1766,7 @@ async function doTranslate() {
     setOutputHtml(escapeHtml(result));
     saveSession();
   } catch(e) {
-    showError(e.message);
+    showError('Translation failed: ' + e.message);
   } finally {
     state.isTranslating = false;
   }
@@ -2217,7 +2227,7 @@ function updateLlmSelects() {
   const transOpts = state.presets.translation.map(p =>
     `<option value="${p.name}">${p.name}</option>`
   ).join('');
-  transSelect.innerHTML = transOpts || '<option value="">Configure in Config</option>';
+  transSelect.innerHTML = transOpts || '<option value="">Set up an LLM preset…</option>';
 
   const ttsOpts = state.presets.tts.map(p =>
     `<option value="${p.name}">${p.name}</option>`
@@ -2837,13 +2847,7 @@ function bindEvents() {
 
   // Config modal
   $id('configBtn').addEventListener('click', () => {
-    openConfigDraft();
-    syncConfigToForm();
-    state.configOpen = true;
-    $id('configOverlay').classList.add('open');
-    // Focus management: remember where we came from, start on the first field
-    configReturnFocus = document.activeElement;
-    $id('cfgTransPreset').focus();
+    openConfigModal();
   });
 
   $id('configClose').addEventListener('click', requestCloseConfig);
@@ -2946,6 +2950,13 @@ function bindEvents() {
       showToast(`Switched to ${e.target.value}`, 'info');
       saveSession();
     }
+  });
+
+  // "Set up an LLM preset…" is the only option when no preset exists — a
+  // single-option select never fires change, so honor the label on click.
+  $id('transLlmSelect').addEventListener('click', () => {
+    const sel = $id('transLlmSelect');
+    if (sel.options.length === 1 && !sel.options[0].value) openConfigModal();
   });
 
   $id('ttsLlmSelect').addEventListener('change', e => {
